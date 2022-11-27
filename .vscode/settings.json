@@ -3,5 +3,6 @@
         "stdlib.h": "c",
         "socket.h": "c",
         "iostream": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "Enabled"
 }
