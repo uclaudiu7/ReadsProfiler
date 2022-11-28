@@ -35,7 +35,6 @@ int main(int argc, char *argv[])
     while(1){
         bzero(msg, 100);
         read(0, msg, 100);
-
         if (write(sd, msg, 100) <= 0){
             perror("[client]Eroare la write() spre server.\n");
             return errno;

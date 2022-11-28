@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "database.h"
 
 using namespace std;
 
@@ -18,6 +19,8 @@ int main(){
     char msg[100];
     char rasp[100]= " ";
     int sd;
+
+    UserDatabase db;
 
     if((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("[server]Eroare la socket().\n");
@@ -52,6 +55,7 @@ int main(){
         perror("[server]Eroare la accept().\n");
     }
 
+    db.openUserDatabase();
     while(1){
         bzero(msg, 100);
 
@@ -60,6 +64,21 @@ int main(){
         }
 
         printf("[client]--> %s", msg);
+
+        char username[10] = "";
+        char password[10] = "";
+        if(strncmp(msg, "register", 8) == 0){
+            int i = 9, j = 0;
+            while(msg[i] != ' ')
+                username[j++] = msg[i++];
+            username[j] = '\0';
+            i++, j = 0;
+            while(msg[i] != ' ' && msg[i] != '\0')
+                password[j++] = msg[i++];
+            printf("user: %s\npass: %s\n", username, password);
+            db.insertUser(username, password);
+        }
+        db.closeUserDatabase();
 
         bzero(msg, 100);
         read(0, msg, 100);
