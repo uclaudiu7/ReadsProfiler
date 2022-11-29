@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sqlite3.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -7,11 +8,65 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "database.h"
+#include "users.h"
 
 using namespace std;
 
-#define PORT 2024
+#define PORT 3000
+
+sqlite3* myDatabase;
+static int callback(void *NotUsed, int argc, char **argv, char **azColName){
+    int i;
+    for (i = 0; i < argc; i++){
+        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+    }
+    printf("\n");
+    return 0;
+}
+
+void createTable(char *sqlStatement, char *tableName){
+    int run;
+    char *ErrMsg = 0;
+
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{
+        printf("Table %s created successfully!\n", tableName);
+    }
+}
+
+void createDatabase(){
+    FILE *exists = fopen("database.db", "r");
+    if(exists){
+        printf("Database already exists!\n");
+        fclose(exists);
+        return;
+    }
+    printf("Creating database...\n");
+    char *sqlStatement;
+    int run;
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+        return;
+    }
+    else{
+        printf("Database opened successfully!\n");
+    }    
+    
+    /*############## creating database tables ##############*/
+    sqlStatement = "CREATE TABLE USERS(" \
+                 "USERNAME TEXT PRIMARY KEY NOT NULL," \
+                 "PASSWORD TEXT NOT NULL);";
+    createTable(sqlStatement, "USERS");
+
+
+    sqlite3_close(myDatabase);
+}
 
 int main(){
     struct sockaddr_in server;
@@ -19,8 +74,6 @@ int main(){
     char msg[100];
     char rasp[100]= " ";
     int sd;
-
-    UserDatabase db;
 
     if((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("[server]Eroare la socket().\n");
@@ -55,7 +108,8 @@ int main(){
         perror("[server]Eroare la accept().\n");
     }
 
-    db.openUserDatabase();
+    createDatabase();
+
     while(1){
         bzero(msg, 100);
 
@@ -65,8 +119,8 @@ int main(){
 
         printf("[client]--> %s", msg);
 
-        char username[10] = "";
-        char password[10] = "";
+        char username[20] = "";
+        char password[20] = "";
         if(strncmp(msg, "register", 8) == 0){
             int i = 9, j = 0;
             while(msg[i] != ' ')
@@ -75,10 +129,13 @@ int main(){
             i++, j = 0;
             while(msg[i] != ' ' && msg[i] != '\0')
                 password[j++] = msg[i++];
+            password[j] = '\0';
             printf("user: %s\npass: %s\n", username, password);
-            db.insertUser(username, password);
+            
+            User u;
+            u.registerUser(username, password);
+
         }
-        db.closeUserDatabase();
 
         bzero(msg, 100);
         read(0, msg, 100);
