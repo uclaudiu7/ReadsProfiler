@@ -9,7 +9,7 @@
 #include <netdb.h>
 #include <string.h>
 
-#define PORT 3000
+#define PORT 3002
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
         }
 
         printf("[server]--> %s", msg);
-        if(strncmp("stop", msg, 4) == 0)
+        if(strncmp("Server stopped!\n", msg, 16) == 0)
             break;
     }
     close(sd);

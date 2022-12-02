@@ -1,5 +1,13 @@
 class User{
+    private:
+        bool log_status;
+        char name[20];
     public:
-        void registerUser(char username[20], char password[20]);
-        //bool deleteThisUser(char username[20], char password[20]);
+        User();
+        char *registerUser(char username[20], char password[20]);
+        char *deleteUser();
+        char *loginUser(char username[20], char password[20]);
+        char *logoutUser();
+        bool isLogged();
+        char *getName();
 };

@@ -1,0 +1,48 @@
+isbn
+title
+author
+year
+genre
+subgenre
+rating
+
+9780747532743
+Harry Potter and the Philosopher's Stone
+J. K. Rowling
+1997	
+Magic
+Fiction
+10
+
+9780747538493
+Harry Potter and the Chamber of Secrets
+J. K. Rowling
+1998	
+Magic
+Fiction
+9
+
+9781408703991
+The Cuckoo's Calling
+J. K. Rowling
+2013
+Crime
+Fiction
+7
+
+9780679745587
+In Cold Blood
+Truman Capote
+1995
+Crime
+Reality
+Nonfiction
+8
+
+9781542005227
+If You Tell
+Gregg Olsen
+2019
+Nonfiction
+Biography
+6
