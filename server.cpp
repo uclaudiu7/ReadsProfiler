@@ -14,7 +14,7 @@
 
 using namespace std;
 
-#define PORT 3000
+#define PORT 3002
 
 sqlite3* myDatabase;
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){

@@ -9,7 +9,7 @@
 #include <netdb.h>
 #include <string.h>
 
-#define PORT 3000
+#define PORT 3002
 
 int main(int argc, char *argv[])
 {
@@ -34,7 +34,6 @@ int main(int argc, char *argv[])
 
     while(1){
         bzero(msg, 400);
-        printf("[client]-->");
         read(0, msg, 400);
         if (write(sd, msg, 400) <= 0){
             perror("[client]Eroare la write() spre server.\n");

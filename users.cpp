@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <algorithm>
 #include "users.h"
 
 using namespace std;
@@ -217,18 +218,40 @@ char *User::searchAuthor(char *author){
     else{
         strcpy(charResult, "We found these books written by ");
         strcat(charResult, author);
-        strcat(charResult, " :\n");
+        strcat(charResult, " :\n\n");
 
         for(int i = 0; i < queryResult.size(); i++){
             char index[10];
-            sprintf(index, "          %d. ", i);
+            sprintf(index, "         %d. ", i+1);
             strcat(charResult, index);
             strcat(charResult, queryResult[i].c_str());
             strcat(charResult, "\n");
         }
-        strcat(charResult, "[server]--> To view a book type view 'index'!\n");
+        strcat(charResult, "\n[server]--> To view a book type view 'index'!\n");
     }
-    char *result = new char[500];        
+    char *result = new char[500];
+    strcpy(result, charResult);
+    return result;
+}
+
+char *User::recommend(){
+    if(recommendations.size() == 0)
+        return "You have no activity. We can't recommend you anything yet!\n";
+    
+    sort(recommendations.begin(), recommendations.end(), greater<int>());
+
+    char charResult[500];
+    strcpy(charResult, "Here are some books you might like:\n\n");
+    for(int i = 0; i < recommendations.size(); i++){
+        char index[10];
+        sprintf(index, "         %d. ", i+1);
+        strcat(charResult, index);
+        strcat(charResult, recommendations[i].second.c_str());
+        strcat(charResult, "\n");
+    }
+    strcat(charResult, "\n[server]--> To view a book type view 'index'!\n");
+
+    char *result = new char[500];
     strcpy(result, charResult);
     return result;
 }

@@ -1,10 +1,13 @@
 #include <vector>
 #include <string>
 
+using namespace std;
+
 class User{
     private:
         bool log_status;
         char name[20];
+        vector < pair <int,string> > recommendations;
     public:
         User();
         bool isLogged();
@@ -14,4 +17,7 @@ class User{
         char *logoutUser();
         char *getName();
         char *searchAuthor(char author[100]);
+
+        void boost();
+        char *recommend();
 };
