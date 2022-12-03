@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "user.h"
+#include <vector>
+#include <string>
+#include <iostream>
+#include "users.h"
 
 using namespace std;
 
@@ -164,4 +167,68 @@ char *User::loginUser(char *username, char *password){
 
 char *User::logoutUser(){
     this->log_status = false;
+}
+
+char *User::searchAuthor(char *author){
+    vector < string > queryResult;
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    char *ErrMsg = 0;
+    char sqlChar[100];
+    int run;
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+        queryResult.push_back("Couldn't open database!\n");
+    }
+
+    strcpy(sqlChar, "SELECT TITLE FROM BOOKS WHERE AUTHOR='");
+    strcat(sqlChar, author);
+    strcat(sqlChar, "';");
+
+    char *sqlStatement = new char[100];
+    strcpy(sqlStatement, sqlChar);    
+
+    run = sqlite3_prepare_v2(myDatabase, sqlStatement, -1, &s, NULL);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *line = (char*)sqlite3_column_text(s, 0);
+        queryResult.push_back(line);
+    }
+
+    if(run != SQLITE_DONE)
+        printf("Error!\n");
+
+    sqlite3_finalize(s);
+    sqlite3_close(myDatabase);
+    
+    char charResult[500];
+    
+    if(queryResult.size() == 0){
+        strcpy(charResult, "No books found written by ");
+        strcat(charResult, author);
+        strcat(charResult, ".\n");
+    }
+    else{
+        strcpy(charResult, "We found these books written by ");
+        strcat(charResult, author);
+        strcat(charResult, " :\n");
+
+        for(int i = 0; i < queryResult.size(); i++){
+            char index[10];
+            sprintf(index, "          %d. ", i);
+            strcat(charResult, index);
+            strcat(charResult, queryResult[i].c_str());
+            strcat(charResult, "\n");
+        }
+        strcat(charResult, "[server]--> To view a book type view 'index'!\n");
+    }
+    char *result = new char[500];        
+    strcpy(result, charResult);
+    return result;
 }

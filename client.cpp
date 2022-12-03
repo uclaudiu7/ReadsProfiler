@@ -9,13 +9,13 @@
 #include <netdb.h>
 #include <string.h>
 
-#define PORT 3002
+#define PORT 3000
 
 int main(int argc, char *argv[])
 {
     int sd;
     struct sockaddr_in server; // structura folosita pentru conectare
-    char msg[100];             // mesajul trimis
+    char msg[400];             // mesajul trimis
 
     if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("Eroare la socket().\n");
@@ -33,9 +33,10 @@ int main(int argc, char *argv[])
     }
 
     while(1){
-        bzero(msg, 100);
-        read(0, msg, 100);
-        if (write(sd, msg, 100) <= 0){
+        bzero(msg, 400);
+        printf("[client]-->");
+        read(0, msg, 400);
+        if (write(sd, msg, 400) <= 0){
             perror("[client]Eroare la write() spre server.\n");
             return errno;
         }
@@ -43,13 +44,14 @@ int main(int argc, char *argv[])
         /* citirea raspunsului dat de server
         (apel blocant pana cand serverul raspunde); Atentie si la cum se face read- vezi cursul! */
 
-        bzero(msg, 100);
-        if (read(sd, msg, 100) < 0){
+        bzero(msg, 400);
+        printf("\n");
+        if (read(sd, msg, 400) < 0){
             perror("[client]Eroare la read() de la server.\n");
             return errno;
         }
 
-        printf("[server]--> %s", msg);
+        printf("[server]--> %s\n", msg);
         if(strncmp("Server stopped!\n", msg, 16) == 0)
             break;
     }

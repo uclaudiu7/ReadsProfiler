@@ -8,12 +8,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <fstream>
-#include "user.h"
+#include <vector>
+#include <string>
+#include "users.h"
 
 using namespace std;
 
-#define PORT 3002
+#define PORT 3000
 
 sqlite3* myDatabase;
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
@@ -27,7 +28,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 
 void addDefaultBooks(){
     char *ErrMsg = 0;
-    char sqlChar[100];
+    char *sqlStatement;
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
@@ -36,8 +37,63 @@ void addDefaultBooks(){
         return;
     }
     
-    strcpy(sqlChar, "INSERT INTO USERS VALUES (");
+    sqlStatement = "INSERT INTO BOOKS VALUES('9780747532743', " \
+                    "'Harry Potter and the Philosopher`s Stone', " \
+                    "'J.K.Rowling', " \
+                    "'1997', 'Magic', 'Fiction', '10');";
+    printf("---->> *%s*\n", sqlStatement);
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+
+    sqlStatement = "INSERT INTO BOOKS VALUES('9780747538493', " \
+                    "'Harry Potter and the Chamber of Secrets', " \
+                    "'J.K.Rowling', " \
+                    "'1998', 'Magic', 'Fiction', '9');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
     
+    sqlStatement = "INSERT INTO BOOKS VALUES('9781408703991', " \
+                    "'The Cuckoo`s Calling', " \
+                    "'J.K.Rowling', " \
+                    "'2013', 'Crime', 'Fiction', '7');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+    
+    sqlStatement = "INSERT INTO BOOKS VALUES('9780679745587', " \
+                    "'In Cold Blood', " \
+                    "'TrumanCapote', " \
+                    "'1995', 'Crime', 'Nonfiction', '8');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+    
+    sqlStatement = "INSERT INTO BOOKS VALUES('9781542005227', " \
+                    "'If You Tell', " \
+                    "'GreggOlsen', " \
+                    "'2019', 'Nonfiction', 'Biography', '6');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+    
+
     sqlite3_close(myDatabase);
 }
 
@@ -89,10 +145,9 @@ void createDatabase(){
                  "GENRE TEXT NOT NULL, " \
                  "SUBGENGRE TEXT NOT NULL, " \
                  "RATING TEXT NOT NULL);";
-    addDefaultBooks();
     createTable(sqlStatement, "BOOKS");
+    addDefaultBooks();
 }
-
 
 char *handleRegister(char command[100], User &u){
     /*###### check if command is register <user> <pass> <pass> ######*/
@@ -102,7 +157,8 @@ char *handleRegister(char command[100], User &u){
     char password[20] = "";
     char password2[20] = "";
 
-    printf("Command has len: %d\n", strlen(command));
+    
+
     if(strlen(command) < 15)
         return "Please register using following command: register 'username' 'password' 'password'!\n";
 
@@ -171,6 +227,34 @@ char *handleHelp(){
     return "Available commands: help, register, delete account, login, logout, status, stop.\n";
 }
 
+char *handleSearch(char command[100], User &u){
+    if(strlen(command) < 11)
+        return "Command should be: search <type> <keyword> !\n";
+    
+    char search_type[20], search_keyword[100];
+
+    int i = 7, j = 0;
+    while(command[i] >= 33 && command[i] <= 126)
+        search_type[j++] = command[i++];
+    search_type[j] = '\0';
+    i++, j = 0;
+    while(command[i] >= 33 && command[i] <= 126)
+        search_keyword[j++] = command[i++];
+    search_keyword[j] = '\0';
+
+    if(strlen(search_type) == 0 || strlen(search_keyword) == 0)
+        return "Command should be: search 'type' 'keyword' !\n";
+
+    if(strcmp(search_type, "author") == 0)
+        return u.searchAuthor(search_keyword);
+    if(strcmp(search_type, "title") == 0)
+        return "";
+    if(strcmp(search_type, "year") == 0)
+        return "";
+    if(strcmp(search_type, "genre") == 0)
+        return "";
+}
+
 char *handleCommand(char command[100], User &u){
     if(strncmp(command, "register", 8) == 0)
         return handleRegister(command, u);
@@ -187,7 +271,9 @@ char *handleCommand(char command[100], User &u){
     if(strncmp(command, "help", 4) == 0)
         return handleHelp();
 
-
+    if(strncmp(command, "search", 6) == 0)
+        return handleSearch(command, u);
+    
 
     return "Invalid command. Type 'help' to display available commands!\n";
 }
@@ -195,8 +281,8 @@ char *handleCommand(char command[100], User &u){
 int main(){
     struct sockaddr_in server;
     struct sockaddr_in from;
-    char command[100];
-    char response[300];
+    char command[400];
+    char response[400];
     int sd;
 
     if((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
@@ -236,9 +322,9 @@ int main(){
 
     User u;
     while(1){
-        bzero(command, 100);
+        bzero(command, 400);
 
-        if(read(client, command, 100) <= 0){
+        if(read(client, command, 400) <= 0){
             perror("[server]Eroare la read() de la client.\n");
         }
 
@@ -248,11 +334,20 @@ int main(){
             write(client, "Server stopped!\n", 16);
             break;
         }
+        if(strncmp("test", command, 4) == 0){
+            string s = "tested succesfully!";
+            const int n = s.size();
+            char ss[n];
+            copy(s.begin(), s.end(), ss);
+            ss[n] = '\0';
+            printf("size: %d *%s*\n", n, ss);
+            write(client, ss, n);
+        }
 
         strcpy(response, handleCommand(command, u));
         write(client, response, strlen(response));
 
-        bzero(response, 100);
+        bzero(response, 400);
     }
     close(client);
     close(sd);

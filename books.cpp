@@ -16,7 +16,3 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 }
 
 Book::Book(){};
-
-char *Book::searchAuthor(){
-    
-}
