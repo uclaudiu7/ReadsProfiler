@@ -255,3 +255,13 @@ char *User::recommend(){
     strcpy(result, charResult);
     return result;
 }
+
+void User::updateRec(Book b){
+    for(int i = 0; i < recommendations.size(); i++){
+        if(strcmp(recommendations[i].second.c_str(), b.isbn) == 0){
+            recommendations[i].first++;
+            return;
+        }
+    }
+    recommendations.push_back(make_pair(1, b.isbn));
+}

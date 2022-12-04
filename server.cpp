@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 #include "users.h"
+#include "books.h"
 
 using namespace std;
 
@@ -255,6 +256,10 @@ char *handleSearch(char command[100], User &u){
         return "";
 }
 
+char *handleRecommend(User &u){
+    return u.recommend();
+}
+
 char *handleCommand(char command[100], User &u){
     if(strncmp(command, "register", 8) == 0)
         return handleRegister(command, u);
@@ -273,7 +278,8 @@ char *handleCommand(char command[100], User &u){
 
     if(strncmp(command, "search", 6) == 0)
         return handleSearch(command, u);
-    
+    if(strncmp(command, "recommend", 9) == 0)
+        return handleRecommend(u);
 
     return "Invalid command. Type 'help' to display available commands!\n";
 }

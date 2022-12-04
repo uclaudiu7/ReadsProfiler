@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include "books.h"
 
 using namespace std;
 
@@ -18,6 +19,6 @@ class User{
         char *getName();
         char *searchAuthor(char author[100]);
 
-        void boost();
+        void updateRec(Book b);
         char *recommend();
 };

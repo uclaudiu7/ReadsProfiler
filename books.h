@@ -1,8 +1,8 @@
 class Book{
     private:
-        char isbn[15];
-        char title[100];
     public:
+        char title[100];
+        char isbn[15];
         Book();
         char *insertBook();
         
