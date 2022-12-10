@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <string>
 #include "books.h"
@@ -12,13 +13,13 @@ class User{
     public:
         User();
         bool isLogged();
-        char *registerUser(char username[20], char password[20]);
-        char *deleteUser();
-        char *loginUser(char username[20], char password[20]);
-        char *logoutUser();
-        char *getName();
-        char *searchAuthor(char author[100]);
+        const char *registerUser(char username[20], char password[20]);
+        const char *deleteUser();
+        const char *loginUser(char username[20], char password[20]);
+        const char *logoutUser();
+        const char *getName();
+        const char *searchAuthor(char author[100]);
 
         void updateRec(Book b);
-        char *recommend();
+        const char *recommend();
 };

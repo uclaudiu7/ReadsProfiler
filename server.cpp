@@ -15,7 +15,7 @@
 
 using namespace std;
 
-#define PORT 3002
+#define PORT 3000
 
 sqlite3* myDatabase;
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
@@ -29,7 +29,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 
 void addDefaultBooks(){
     char *ErrMsg = 0;
-    char *sqlStatement;
+    const char *sqlStatement;
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
@@ -98,7 +98,7 @@ void addDefaultBooks(){
     sqlite3_close(myDatabase);
 }
 
-void createTable(char *sqlStatement, char *tableName){
+void createTable(const char *sqlStatement, const char *tableName){
     int run;
     char *ErrMSg = 0;
 
@@ -120,7 +120,7 @@ void createDatabase(){
         return;
     }
     printf("Creating database...\n");
-    char *sqlStatement;
+    const char *sqlStatement;
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
@@ -150,7 +150,7 @@ void createDatabase(){
     addDefaultBooks();
 }
 
-char *handleRegister(char command[100], User &u){
+const char *handleRegister(char command[100], User &u){
     /*###### check if command is register <user> <pass> <pass> ######*/
     /*######        check if pasword matches in database       ######*/
 
@@ -189,9 +189,9 @@ char *handleRegister(char command[100], User &u){
     }
 }
 
-char *handleDelete(User &u){ return u.deleteUser(); }
+const char *handleDelete(User &u){ return u.deleteUser(); }
 
-char *handleLogin(char command[100], User &u){
+const char *handleLogin(char command[100], User &u){
     if(strlen(command) < 10)
         return "Please login using: login <username> <password> !\n";
     if(u.isLogged())
@@ -212,23 +212,22 @@ char *handleLogin(char command[100], User &u){
     return u.loginUser(username, password);
 }
 
-char *handleLogout(User &u){
-    u.logoutUser();
-    return "Logged out!\n";
+const char *handleLogout(User &u){
+    return u.logoutUser();
 }
 
-char *handleStatus(User &u){
+const char *handleStatus(User &u){
     if(u.isLogged() == true)
         return "You are logged in!\n";
     else
         return "You are not logged in!\n";
 }
 
-char *handleHelp(){
+const char *handleHelp(){
     return "Available commands: help, register, delete account, login, logout, status, stop.\n";
 }
 
-char *handleSearch(char command[100], User &u){
+const char *handleSearch(char command[100], User &u){
     if(strlen(command) < 11)
         return "Command should be: search <type> <keyword> !\n";
     
@@ -254,13 +253,19 @@ char *handleSearch(char command[100], User &u){
         return "";
     if(strcmp(search_type, "genre") == 0)
         return "";
+    
+    return "Invalid keyword!\n";
 }
 
-char *handleRecommend(User &u){
+const char *handleSearch2(char command[100], User &u){
+    ;
+}
+
+const char *handleRecommend(User &u){
     return u.recommend();
 }
 
-char *handleCommand(char command[100], User &u){
+const char *handleCommand(char command[100], User &u){
     if(strncmp(command, "register", 8) == 0)
         return handleRegister(command, u);
     if(strncmp(command, "delete account", 14) == 0)

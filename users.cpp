@@ -7,6 +7,7 @@
 #include <iostream>
 #include <algorithm>
 #include "users.h"
+#include "books.h"
 
 using namespace std;
 
@@ -21,11 +22,11 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 
 User::User(){ this->log_status = false; }
 
-char *User::getName(){ return this->name; }
+const char *User::getName(){ return this->name; }
 
 bool User::isLogged(){ return this->log_status; }
 
-char *User::registerUser(char username[20], char password[20]){
+const char *User::registerUser(char username[20], char password[20]){
     sqlite3* myDatabase;
     char *ErrMsg = 0;
     char sqlChar[100];
@@ -74,7 +75,7 @@ char *User::registerUser(char username[20], char password[20]){
     return response;
 }
 
-char *User::deleteUser(){
+const char *User::deleteUser(){
     if(log_status == false)
         return "You must be logged in first!\n";
     
@@ -116,7 +117,7 @@ char *User::deleteUser(){
     return response;
 }
 
-char *User::loginUser(char *username, char *password){
+const char *User::loginUser(char *username, char *password){
     sqlite3* myDatabase;
     sqlite3_stmt *s;
     char *ErrMsg = 0;
@@ -124,7 +125,6 @@ char *User::loginUser(char *username, char *password){
     char responseChar[200];
     int run;
 
-    printf("In comanda login am: '%s' si '%s'.\n", username, password);
     run = sqlite3_open("database.db", &myDatabase);
     if(run){
         fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
@@ -166,11 +166,12 @@ char *User::loginUser(char *username, char *password){
     return response;
 }   
 
-char *User::logoutUser(){
+const char *User::logoutUser(){
     this->log_status = false;
+    return "Logged out!\n";
 }
 
-char *User::searchAuthor(char *author){
+const char *User::searchAuthor(char *author){
     vector < string > queryResult;
     sqlite3* myDatabase;
     sqlite3_stmt *s;
@@ -221,7 +222,7 @@ char *User::searchAuthor(char *author){
         strcat(charResult, " :\n\n");
 
         for(int i = 0; i < queryResult.size(); i++){
-            char index[10];
+            char index[25];
             sprintf(index, "         %d. ", i+1);
             strcat(charResult, index);
             strcat(charResult, queryResult[i].c_str());
@@ -234,16 +235,16 @@ char *User::searchAuthor(char *author){
     return result;
 }
 
-char *User::recommend(){
+const char *User::recommend(){
     if(recommendations.size() == 0)
         return "You have no activity. We can't recommend you anything yet!\n";
     
-    sort(recommendations.begin(), recommendations.end(), greater<int>());
+    //sort(recommendations.begin(), recommendations.end(), greater<int>());
 
     char charResult[500];
     strcpy(charResult, "Here are some books you might like:\n\n");
     for(int i = 0; i < recommendations.size(); i++){
-        char index[10];
+        char index[15];
         sprintf(index, "         %d. ", i+1);
         strcat(charResult, index);
         strcat(charResult, recommendations[i].second.c_str());

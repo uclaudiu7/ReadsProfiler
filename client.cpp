@@ -9,7 +9,7 @@
 #include <netdb.h>
 #include <string.h>
 
-#define PORT 3002
+#define PORT 3000
 
 int main(int argc, char *argv[])
 {
