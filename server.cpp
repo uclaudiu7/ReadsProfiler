@@ -2,6 +2,7 @@
 #include <sqlite3.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <pthread.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <unistd.h>
@@ -15,9 +16,12 @@
 
 using namespace std;
 
-#define PORT 3000
+#define PORT 3002
+#define MAX_THREADS 100
 
+pthread_t threads[MAX_THREADS];
 sqlite3* myDatabase;
+
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
     int i;
     for (i = 0; i < argc; i++){ 
@@ -192,24 +196,16 @@ const char *handleRegister(char command[100], User &u){
 const char *handleDelete(User &u){ return u.deleteUser(); }
 
 const char *handleLogin(char command[100], User &u){
-    if(strlen(command) < 10)
-        return "Please login using: login <username> <password> !\n";
     if(u.isLogged())
         return "You are already logged in!\n";
-    char username[20] = "";
-    char password[20] = "";
-    int i = 6, j = 0;
-    while(command[i] != ' ')
-        username[j++] = command[i++];
-    username[j] = '\0';
-    i++, j = 0;
-    while(command[i] >= 33 && command[i] <= 126)
-        password[j++] = command[i++];
-
-    if(strlen(username) == 0 || strlen(password) == 0)
+    char username[100] = "";
+    char password[100] = "";
+    
+    int fields = sscanf(command, "login %s %s", username, password);
+    if(fields = 2)
+        return u.loginUser(username, password);
+    else
         return "Please login using: login <username> <password> !\n";
-
-    return u.loginUser(username, password);
 }
 
 const char *handleLogout(User &u){
@@ -227,38 +223,22 @@ const char *handleHelp(){
     return "Available commands: help, register, delete account, login, logout, status, stop.\n";
 }
 
-const char *handleSearch(char command[100], User &u){
-    if(strlen(command) < 11)
-        return "Command should be: search <type> <keyword> !\n";
-    
-    char search_type[20], search_keyword[100];
+const char *handleSearch(char command[100], User &u, int &client){
+    char author[50], title[100], year[6];
+    write(client, "Please enter details about the book, or press ENTER:\nauthor: ", 61);
+    read(client, author, 50);
+    write(client, "title: ", 7);
+    read(client, title, 100);
 
-    int i = 7, j = 0;
-    while(command[i] >= 33 && command[i] <= 126)
-        search_type[j++] = command[i++];
-    search_type[j] = '\0';
-    i++, j = 0;
-    while(command[i] >= 33 && command[i] <= 126)
-        search_keyword[j++] = command[i++];
-    search_keyword[j] = '\0';
+    char *response = new char[500];
+    char *r;
+    strcpy(r, "Ai ales autorul ");
+    strcat(r, author);
+    strcat(r, " si titlul ");
+    strcat(r, title);
 
-    if(strlen(search_type) == 0 || strlen(search_keyword) == 0)
-        return "Command should be: search 'type' 'keyword' !\n";
-
-    if(strcmp(search_type, "author") == 0)
-        return u.searchAuthor(search_keyword);
-    if(strcmp(search_type, "title") == 0)
-        return "";
-    if(strcmp(search_type, "year") == 0)
-        return "";
-    if(strcmp(search_type, "genre") == 0)
-        return "";
-    
-    return "Invalid keyword!\n";
-}
-
-const char *handleSearch2(char command[100], User &u){
-    ;
+    strcpy(response, r);
+    return response;
 }
 
 const char *handleRecommend(User &u){
@@ -280,13 +260,43 @@ const char *handleCommand(char command[100], User &u){
         return "stop";
     if(strncmp(command, "help", 4) == 0)
         return handleHelp();
+    if(strncmp(command, "search", 6) == 0){
+        return "Success\n";
+    }
 
-    if(strncmp(command, "search", 6) == 0)
-        return handleSearch(command, u);
     if(strncmp(command, "recommend", 9) == 0)
         return handleRecommend(u);
 
     return "Invalid command. Type 'help' to display available commands!\n";
+}
+
+void *handleThread(void *arg){
+    int client = *(int *)arg;
+    char command[400];
+    char response[400];
+    User u;
+
+    while(1){
+        bzero(command, 400);
+
+        if(read(client, command, 400) <= 0){
+            perror("[server]Eroare la read() de la client.\n");
+        }
+
+        printf("[client]--> %s\n", command);
+
+        if(strncmp("stop", command, 4) == 0){
+            write(client, "Server stopped!\n", 16);
+        }
+
+        strcpy(response, handleCommand(command, u));
+
+        write(client, response, strlen(response));
+        bzero(response, 400);
+    }
+
+    close(client);
+    return NULL;
 }
 
 int main(){
@@ -318,49 +328,27 @@ int main(){
         return errno;
     }
 
-    int client;
-    int length = sizeof(from);
-    printf("[server]Asteptam la portul %d...\n", PORT);
-    fflush(stdout);
-
-    client = accept(sd, (struct sockaddr *) &from, (socklen_t *) &length);
-
-    if(client < 0){
-        perror("[server]Eroare la accept().\n");
-    }
-
     createDatabase();
 
     User u;
     while(1){
         bzero(command, 400);
+        int client = accept(sd, NULL, NULL);
+        int threadIndex = 0;
 
-        if(read(client, command, 400) <= 0){
-            perror("[server]Eroare la read() de la client.\n");
-        }
+        while(threads[threadIndex] != 0 && threadIndex < MAX_THREADS)
+            threadIndex++;
 
-        printf("[client]--> %s", command);
-
-        if(strncmp("stop", command, 4) == 0){
-            write(client, "Server stopped!\n", 16);
-            break;
-        }
-        if(strncmp("test", command, 4) == 0){
-            string s = "tested succesfully!";
-            const int n = s.size();
-            char ss[n];
-            copy(s.begin(), s.end(), ss);
-            ss[n] = '\0';
-            printf("size: %d *%s*\n", n, ss);
-            write(client, ss, n);
-        }
-
-        strcpy(response, handleCommand(command, u));
-        write(client, response, strlen(response));
-
-        bzero(response, 400);
+        if(threadIndex < MAX_THREADS)
+            pthread_create(&threads[threadIndex], NULL, handleThread, &client);
     }
-    close(client);
+
+
+    /*###### Closing the server socket and joining all of the threads we created ######*/
     close(sd);
+    for(int i = 0; i < 100; i++)
+        if(threads[i] != 0)
+            pthread_join(threads[i], NULL);
+
     return 0;
 }

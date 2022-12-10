@@ -9,7 +9,7 @@
 #include <netdb.h>
 #include <string.h>
 
-#define PORT 3000
+#define PORT 3002
 
 int main(int argc, char *argv[])
 {
@@ -35,10 +35,34 @@ int main(int argc, char *argv[])
     while(1){
         bzero(msg, 400);
         read(0, msg, 400);
-        if (write(sd, msg, 400) <= 0){
-            perror("[client]Eroare la write() spre server.\n");
-            return errno;
+        if(strncmp("search", msg, 6) == 0){
+            char author[100], title[200], genres[100], an[10], isbn[20], rating[5];
+            printf("Please provide more details or press ENTER for all of them.\n");
+            printf("Author: ");
+            fgets(author, 100, stdin);
+            printf("--------len: %d\n", strlen(author));
+            printf("Title: ");
+            fgets(title, 200, stdin);
+            printf("--------len: %d\n", strlen(title));
+            printf("Genres (separated only by a comma): ");
+            fgets(genres, 100, stdin);
+            printf("--------len: %d\n", strlen(genres));
+
+            char command[400];
+            strcpy(command, "search#author:");
+            strncat(command, author, strlen(author)-1);
+            strcat(command, "#title:");
+            strncat(command, title, strlen(title)-1);
+            strcat(command, "#genre:");
+            strncat(command, genres, strlen(genres)-1);
+
+            write(sd, command, 400);
         }
+        else
+            if (write(sd, msg, 400) <= 0){
+                perror("[client]Eroare la write() spre server.\n");
+                return errno;
+            }
 
         /* citirea raspunsului dat de server
         (apel blocant pana cand serverul raspunde); Atentie si la cum se face read- vezi cursul! */
