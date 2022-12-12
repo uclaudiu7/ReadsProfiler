@@ -245,6 +245,7 @@ string User::searchBook(Book b){
     }
 
     string str = createSqlStatement(b);
+    cout << str << endl;
     const char *sql_statement = const_cast<char*>(str.c_str());
 
     run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
@@ -286,6 +287,9 @@ string User::searchBook(Book b){
 }
 
 string User::viewBook(int search_index){
+    if(search_index > last_search.size() || search_index < 1)
+        return "Invalid index!\n";
+    
     sqlite3* myDatabase;
     sqlite3_stmt *s;
     char *ErrMsg = 0;
@@ -310,7 +314,7 @@ string User::viewBook(int search_index){
         sqlite3_free(ErrMsg);
     }
     
-    string book_info = "Here's some details about your selected book:\n\n      *ISBN:      ";
+    string book_info = "Here's some details about your selected book:\n\n         • ISBN:       ";
     while((run = sqlite3_step(s)) == SQLITE_ROW){
         char *line = (char*)sqlite3_column_text(s, 0);
         book_info += line;
@@ -326,15 +330,41 @@ string User::viewBook(int search_index){
     size_t it = 0;
     int i = 0;
     while((it = book_info.find("#", it)) != string::npos){
-        string replace_delim = "\n      *" + titles[i++];
+        string replace_delim = "\n         • " + titles[i++];
         book_info.replace(it, 1, replace_delim);
         it += 8;
     }
     
     printf("*%s*\n", book_info.c_str());
 
+    Book b(book_isbn);
+    this->last_view = b;
+
+    this->download_flag = true;
     return book_info;
 }
+
+string User::getLastView(){
+    return this->last_view.getISBN();
+}
+
+string User::downloadBook(){
+    if(last_view.isEmpty())
+        return "You must view a book first!\n";
+
+    downloads.push_back(last_view);
+    return "Downloaded your last viewed book! You can use 'downloads' to view your downloaded books!\n";
+}
+
+string User::getDownloads(){
+    string result = "You've downloaded these books so far: \n";
+    for(int i = 0; i < downloads.size(); i++){
+        result += "\n         • ";
+        result += downloads[i].getISBN();
+    }
+    return result;
+}
+
 
 string User::recommend(){
     if(recommendations.size() == 0)
@@ -360,7 +390,7 @@ string User::recommend(){
 
 void User::updateRec(Book b){
     for(int i = 0; i < recommendations.size(); i++){
-        if(strcmp(recommendations[i].second.c_str(), b.getISBN()) == 0){
+        if( recommendations[i].second == b.getISBN() ){
             recommendations[i].first++;
             return;
         }

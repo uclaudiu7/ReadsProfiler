@@ -37,18 +37,18 @@ int main(int argc, char *argv[])
         read(0, msg, 400);
         if(strncmp("search", msg, 6) == 0 ){
             char isbn[20], author[100], title[200], genres[100], year[10], rating[5];
-            printf("Please provide more details or press ENTER for all of them.\n");
-            printf("ISBN: ");
+            printf("Please provide more details or press ENTER for all of them.\n\n");
+            printf(" ISBN: ");
             fgets(isbn, 20, stdin);
-            printf("Title: ");
+            printf(" Title: ");
             fgets(title, 200, stdin);
-            printf("Author: ");
+            printf(" Author: ");
             fgets(author, 100, stdin);
-            printf("Genres (separated only by a comma): ");
+            printf(" Genres (separated by comma): ");
             fgets(genres, 100, stdin);
-            printf("Year: ");
+            printf(" Year: ");
             fgets(year, 10, stdin);
-            printf("Rating: ");
+            printf(" Rating: ");
             fgets(rating, 5, stdin);
 
             char command[400];

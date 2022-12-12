@@ -9,10 +9,12 @@ class User{
     private:
         bool log_status;
         bool view_flag;
+        bool download_flag;
         char name[20];
         vector < pair <int,string> > recommendations;
         vector < string > last_search;
-        string current_book;
+        vector < Book > downloads;
+        Book last_view;
     public:
         User();
         bool isLogged();
@@ -25,6 +27,9 @@ class User{
         string getName();
         string searchBook(Book b);
         string viewBook(int search_index);
+        string getLastView();
+        string downloadBook();
+        string getDownloads();
         string recommend();
 
         void updateRec(Book b);

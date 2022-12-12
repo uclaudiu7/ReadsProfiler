@@ -155,6 +155,11 @@ void createDatabase(){
                  "YEAR TEXT NOT NULL, " \
                  "RATING TEXT NOT NULL);";
     createTable(sqlStatement, "BOOKS");
+
+    sqlStatement = "CREATE TABLE DOWNLOADS(" \
+                 "CODE TEXT PRIMARY KEY NOT NULL);";
+    createTable(sqlStatement, "BOOKS");
+
     addDefaultBooks();
 }
 
@@ -245,6 +250,16 @@ string handleView(char command[400], User &u){
         return "Please select a book using following command: view 'index'!\n";
 }
 
+string handleLastView(User u){ return u.getLastView(); }
+
+string handleDownload(User &u){
+    return u.downloadBook();
+}
+
+string handleDownloads(User &u){
+    return u.getDownloads();
+}
+
 string handleRecommend(User &u){
     return u.recommend();
 }
@@ -268,6 +283,13 @@ string handleCommand(char command[400], User &u){
         return handleSearch(command+7, u);
     if(strncmp(command, "view", 4) == 0)
         return handleView(command, u);
+    if(strncmp(command, "downloads", 9) == 0)
+        return handleDownloads(u);
+    if(strncmp(command, "download", 8) == 0)
+        return handleDownload(u);
+    if(strncmp(command, "last view", 9) == 0)
+        return handleLastView(u);
+    
 
     if(strncmp(command, "recommend", 9) == 0)
         return handleRecommend(u);

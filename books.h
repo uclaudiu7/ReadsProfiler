@@ -12,15 +12,18 @@ class Book{
         string genres;
         string rating;
     public:
-        Book(const string &isbn, const string &author, const string &title,
-             const string &genres, const string &year, const string &rating);
+        Book();
+        Book(string my_isbn);
+        Book(string my_isbn, string my_author, string my_title, 
+             string my_genres, string my_year, string my_rating);
+
+        string getISBN();
+        string getAuthor();
+        string getTitle();
+        string getGenres();
+        string getYear();
+        string getRating();
         
-        char *insertBook();
-        const char *getISBN();
-        const char *getAuthor();
-        const char *getTitle();
-        const char *getGenres();
-        const char *getYear();
-        const char *getRating();
+        bool isEmpty();
         void print();
 };
