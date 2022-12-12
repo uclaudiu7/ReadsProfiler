@@ -35,34 +35,44 @@ int main(int argc, char *argv[])
     while(1){
         bzero(msg, 400);
         read(0, msg, 400);
-        if(strncmp("search", msg, 6) == 0){
-            char author[100], title[200], genres[100], an[10], isbn[20], rating[5];
+        if(strncmp("search", msg, 6) == 0 ){
+            char isbn[20], author[100], title[200], genres[100], year[10], rating[5];
             printf("Please provide more details or press ENTER for all of them.\n");
-            printf("Author: ");
-            fgets(author, 100, stdin);
-            printf("--------len: %d\n", strlen(author));
+            printf("ISBN: ");
+            fgets(isbn, 20, stdin);
             printf("Title: ");
             fgets(title, 200, stdin);
-            printf("--------len: %d\n", strlen(title));
+            printf("Author: ");
+            fgets(author, 100, stdin);
             printf("Genres (separated only by a comma): ");
             fgets(genres, 100, stdin);
-            printf("--------len: %d\n", strlen(genres));
+            printf("Year: ");
+            fgets(year, 10, stdin);
+            printf("Rating: ");
+            fgets(rating, 5, stdin);
 
             char command[400];
-            strcpy(command, "search#author:");
+            strcpy(command, "search#isbn:");
+            strncat(command, isbn, strlen(isbn)-1);
+            strcat(command, "#author:");
             strncat(command, author, strlen(author)-1);
             strcat(command, "#title:");
             strncat(command, title, strlen(title)-1);
-            strcat(command, "#genre:");
+            strcat(command, "#genres:");
             strncat(command, genres, strlen(genres)-1);
+            strcat(command, "#year:");
+            strncat(command, year, strlen(year)-1);
+            strcat(command, "#rating:");
+            strncat(command, rating, strlen(rating)-1);
 
             write(sd, command, 400);
         }
-        else
+        else{
             if (write(sd, msg, 400) <= 0){
                 perror("[client]Eroare la write() spre server.\n");
                 return errno;
             }
+        }
 
         /* citirea raspunsului dat de server
         (apel blocant pana cand serverul raspunde); Atentie si la cum se face read- vezi cursul! */

@@ -32,6 +32,8 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 }
 
 void addDefaultBooks(){
+    /*### this function adds some default books to the databse ###*/
+
     char *ErrMsg = 0;
     const char *sqlStatement;
     int run;
@@ -103,6 +105,7 @@ void addDefaultBooks(){
 }
 
 void createTable(const char *sqlStatement, const char *tableName){
+    /*### creating necessary tables in our databse ###*/
     int run;
     char *ErrMSg = 0;
 
@@ -117,6 +120,7 @@ void createTable(const char *sqlStatement, const char *tableName){
 }
 
 void createDatabase(){
+    /*### if no database is found, we create one, else we open it ###*/
     FILE *exists = fopen("database.db", "r");
     if(exists){
         printf("Database already exists!\n");
@@ -146,15 +150,15 @@ void createDatabase(){
                  "ISBN TEXT PRIMARY KEY NOT NULL," \
                  "TITLE TEXT NOT NULL, " \
                  "AUTHOR TEXT NOT NULL, " \
-                 "YEAR TEXT NOT NULL, " \
                  "GENRE TEXT NOT NULL, " \
-                 "SUBGENGRE TEXT NOT NULL, " \
+                 "SUBGENRE TEXT NOT NULL, " \
+                 "YEAR TEXT NOT NULL, " \
                  "RATING TEXT NOT NULL);";
     createTable(sqlStatement, "BOOKS");
     addDefaultBooks();
 }
 
-const char *handleRegister(char command[100], User &u){
+string handleRegister(char command[100], User &u){
     /*###### check if command is register <user> <pass> <pass> ######*/
     /*######        check if pasword matches in database       ######*/
 
@@ -162,40 +166,16 @@ const char *handleRegister(char command[100], User &u){
     char password[20] = "";
     char password2[20] = "";
 
-    
-
-    if(strlen(command) < 15)
-        return "Please register using following command: register 'username' 'password' 'password'!\n";
-
-    int i = 9, j = 0;
-    while(command[i] != ' ')
-        username[j++] = command[i++];
-    username[j] = '\0';
-    i++, j = 0;
-    while(command[i] >= 33 && command[i] <= 126)
-        password[j++] = command[i++];
-    password[j] = '\0';
-    i++, j = 0;
-    while(command[i] >= 33 && command[i] <= 126)
-        password2[j++] = command[i++];
-    password2[j] = '\0';
-
-    if(strlen(username) == 0 || strlen(password) == 0)
-        return "Please register using following command: register 'username' 'password' 'password'!\n";
-
-    if(strncmp(password2, password, strlen(password)) != 0){
-        printf("Please register using following command: register 'username' 'password' 'password'!\n");
-        return "Please register using following command: register 'username' 'password' 'password'!\n";
-    }
-    else{
-        printf("user: '%s'\npass: '%s'\n", username, password);
+    int fields = sscanf(command, "register %s %s %s", username, password, password2);
+    if(fields == 3 && strcmp(password, password2) == 0)
         return u.registerUser(username, password);
-    }
+    else
+        return "Please register using following command: register 'username' 'password' 'password'!\n";
 }
 
-const char *handleDelete(User &u){ return u.deleteUser(); }
+string handleDelete(User &u){ return u.deleteUser(); }
 
-const char *handleLogin(char command[100], User &u){
+string handleLogin(char command[100], User &u){
     if(u.isLogged())
         return "You are already logged in!\n";
     char username[100] = "";
@@ -208,44 +188,68 @@ const char *handleLogin(char command[100], User &u){
         return "Please login using: login <username> <password> !\n";
 }
 
-const char *handleLogout(User &u){
+string handleLogout(User &u){
     return u.logoutUser();
 }
 
-const char *handleStatus(User &u){
+string handleStatus(User &u){
     if(u.isLogged() == true)
         return "You are logged in!\n";
     else
         return "You are not logged in!\n";
 }
 
-const char *handleHelp(){
-    return "Available commands: help, register, delete account, login, logout, status, stop.\n";
+string handleHelp(){
+    return "Available commands: help, register, delete account, login, logout, status, search, download, rate, view, stop.\n";
 }
 
-const char *handleSearch(char command[100], User &u, int &client){
-    char author[50], title[100], year[6];
-    write(client, "Please enter details about the book, or press ENTER:\nauthor: ", 61);
-    read(client, author, 50);
-    write(client, "title: ", 7);
-    read(client, title, 100);
+string handleSearch(char command[400], User &u){
+    /*
+    if(u.isLogged() == false)
+        return "You must login first!\n";
+    */
+    char *token = strtok(command, "#");
+    string isbn = token + 5;
 
-    char *response = new char[500];
-    char *r;
-    strcpy(r, "Ai ales autorul ");
-    strcat(r, author);
-    strcat(r, " si titlul ");
-    strcat(r, title);
+    token = strtok(nullptr, "#");
+    string author = token + 7;
+    
+    token = strtok(nullptr, "#");
+    string title = token + 6;
+    
+    token = strtok(nullptr, "#");
+    string genres = token + 7;
+    
+    token = strtok(nullptr, "#");
+    string year = token + 5;
+    
+    token = strtok(nullptr, "#");
+    string rating = token + 7;
 
-    strcpy(response, r);
-    return response;
+    Book input_book(isbn, author, title, genres, year, rating);
+    return u.searchBook(input_book);
 }
 
-const char *handleRecommend(User &u){
+string handleView(char command[400], User &u){
+    /*
+    if(u.isLogged() == false)
+        return "You must login first!\n";
+    */
+    if(u.canView() == false)
+        return "You must search something first!\n";
+    int search_index;
+    int fields = sscanf(command, "view %d", &search_index);
+    if(fields == 1)
+        return u.viewBook(search_index);
+    else
+        return "Please select a book using following command: view 'index'!\n";
+}
+
+string handleRecommend(User &u){
     return u.recommend();
 }
 
-const char *handleCommand(char command[100], User &u){
+string handleCommand(char command[400], User &u){
     if(strncmp(command, "register", 8) == 0)
         return handleRegister(command, u);
     if(strncmp(command, "delete account", 14) == 0)
@@ -260,9 +264,10 @@ const char *handleCommand(char command[100], User &u){
         return "stop";
     if(strncmp(command, "help", 4) == 0)
         return handleHelp();
-    if(strncmp(command, "search", 6) == 0){
-        return "Success\n";
-    }
+    if(strncmp(command, "search", 6) == 0)
+        return handleSearch(command+7, u);
+    if(strncmp(command, "view", 4) == 0)
+        return handleView(command, u);
 
     if(strncmp(command, "recommend", 9) == 0)
         return handleRecommend(u);
@@ -289,7 +294,9 @@ void *handleThread(void *arg){
             write(client, "Server stopped!\n", 16);
         }
 
-        strcpy(response, handleCommand(command, u));
+        string handle_string = handleCommand(command, u);
+        const char *temp = handle_string.c_str();
+        strcpy(response, temp);
 
         write(client, response, strlen(response));
         bzero(response, 400);

@@ -20,13 +20,15 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
     return 0;
 }
 
-User::User(){ this->log_status = false; }
+User::User(){ this->log_status = false; this->view_flag = false;}
 
-const char *User::getName(){ return this->name; }
+string User::getName(){ return this->name; }
 
 bool User::isLogged(){ return this->log_status; }
 
-const char *User::registerUser(char username[20], char password[20]){
+bool User::canView(){ return this->view_flag; }
+
+string User::registerUser(char username[20], char password[20]){
     sqlite3* myDatabase;
     char *ErrMsg = 0;
     char sqlChar[100];
@@ -75,7 +77,7 @@ const char *User::registerUser(char username[20], char password[20]){
     return response;
 }
 
-const char *User::deleteUser(){
+string User::deleteUser(){
     if(log_status == false)
         return "You must be logged in first!\n";
     
@@ -117,7 +119,7 @@ const char *User::deleteUser(){
     return response;
 }
 
-const char *User::loginUser(char *username, char *password){
+string User::loginUser(char *username, char *password){
     sqlite3* myDatabase;
     sqlite3_stmt *s;
     char *ErrMsg = 0;
@@ -166,33 +168,86 @@ const char *User::loginUser(char *username, char *password){
     return response;
 }   
 
-const char *User::logoutUser(){
+string User::logoutUser(){
     this->log_status = false;
+    this->view_flag = false;
+    this->last_search.clear();
+    this->recommendations.clear();
     return "Logged out!\n";
 }
 
-const char *User::searchAuthor(char *author){
-    vector < string > queryResult;
+string createSqlStatement(Book b){
+    string isbn = b.getISBN();
+    string author = b.getAuthor();
+    string title = b.getTitle();
+    string genres = b.getGenres();
+    string year = b.getYear();
+    string rating = b.getRating();
+
+    int ANDflag = 0;
+    string sql = "SELECT isbn ||'#'|| title FROM books WHERE ";
+    if(!isbn.empty()){
+        ANDflag++;
+        sql = sql + "isbn = '" + isbn + "' ";
+    }
+    if(ANDflag > 0) sql += "AND ";
+    
+    if(!author.empty()){
+        ANDflag++;
+        sql = sql + "author = '" + author + "' ";
+    } 
+    else ANDflag = 0;
+    if(ANDflag > 0) sql += "AND ";
+
+    if(!title.empty()){
+        ANDflag++;
+        sql = sql + "title LIKE '%" + title + "%' ";
+    }
+    else ANDflag = 0;
+    if(ANDflag > 0) sql += "AND ";
+
+    if(!genres.empty()){
+        ANDflag++;
+        sql = sql + "genres = '" + genres + "' ";
+    }
+    else ANDflag = 0;
+    if(ANDflag > 0) sql += "AND ";
+
+    if(!year.empty()){
+        ANDflag++;
+        sql = sql + "year = '" + year + "' ";
+    }
+    else ANDflag = 0;
+    if(ANDflag > 0) sql += "AND ";
+
+    if(!rating.empty()){
+        ANDflag++;
+        sql = sql + "rating = '" + rating + "' ";
+    }
+    else ANDflag = 0;
+    if(ANDflag > 0) sql += "AND ";
+    sql += "1=1;";
+
+    return sql;
+}
+
+string User::searchBook(Book b){
+    vector < string > query_result;
     sqlite3* myDatabase;
     sqlite3_stmt *s;
     char *ErrMsg = 0;
-    char sqlChar[100];
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
     if(run){
         fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
-        queryResult.push_back("Couldn't open database!\n");
+        query_result.push_back("Couldn't open database!\n");
     }
 
-    strcpy(sqlChar, "SELECT TITLE FROM BOOKS WHERE AUTHOR='");
-    strcat(sqlChar, author);
-    strcat(sqlChar, "';");
+    string str = createSqlStatement(b);
+    const char *sql_statement = const_cast<char*>(str.c_str());
 
-    char *sqlStatement = new char[100];
-    strcpy(sqlStatement, sqlChar);    
-
-    run = sqlite3_prepare_v2(myDatabase, sqlStatement, -1, &s, NULL);
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
     if(run != SQLITE_OK){
         fprintf(stderr, "SQL error: %s\n", ErrMsg);
         sqlite3_free(ErrMsg);
@@ -200,7 +255,7 @@ const char *User::searchAuthor(char *author){
 
     while((run = sqlite3_step(s)) == SQLITE_ROW){
         char *line = (char*)sqlite3_column_text(s, 0);
-        queryResult.push_back(line);
+        query_result.push_back(line);
     }
 
     if(run != SQLITE_DONE)
@@ -209,33 +264,79 @@ const char *User::searchAuthor(char *author){
     sqlite3_finalize(s);
     sqlite3_close(myDatabase);
     
-    char charResult[500];
-    
-    if(queryResult.size() == 0){
-        strcpy(charResult, "No books found written by ");
-        strcat(charResult, author);
-        strcat(charResult, ".\n");
+    string result = "";
+    if(query_result.size() == 0){
+        return "Sorry! No books matched your search criteria!\n";
     }
     else{
-        strcpy(charResult, "We found these books written by ");
-        strcat(charResult, author);
-        strcat(charResult, " :\n\n");
-
-        for(int i = 0; i < queryResult.size(); i++){
-            char index[25];
-            sprintf(index, "         %d. ", i+1);
-            strcat(charResult, index);
-            strcat(charResult, queryResult[i].c_str());
-            strcat(charResult, "\n");
+        this->last_search = query_result;
+        this->view_flag = true;
+        result += "We found these books matching your search criteria:\n\n";
+        for(int i = 0; i < query_result.size(); i++){
+            string query_isbn = query_result[i].substr(0,13);
+            result = result + "         ";
+            result += to_string(i+1);
+            result += ". ";
+            result += query_result[i].substr(14);
+            result += "\n";
         }
-        strcat(charResult, "\n[server]--> To view a book type view 'index'!\n");
+        result += "\n[server]--> To view a book type view 'index'!\n";
     }
-    char *result = new char[500];
-    strcpy(result, charResult);
     return result;
 }
 
-const char *User::recommend(){
+string User::viewBook(int search_index){
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    char *ErrMsg = 0;
+    int run;
+    string book_isbn = last_search[search_index-1].substr(0, 13);
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+        return "Couldn't open database!\n";
+    }
+
+    string sql = "SELECT isbn||'#'||title||'#'||author||'#'||genre||'#'||";
+    sql += "subgenre||'#'||year||'#'||rating ";
+    sql += "FROM books WHERE isbn = '" + book_isbn + "';";
+
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    
+    string book_info = "Here's some details about your selected book:\n\n      *ISBN:      ";
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *line = (char*)sqlite3_column_text(s, 0);
+        book_info += line;
+    }
+
+    if(run != SQLITE_DONE)
+        printf("Error!\n");
+
+    sqlite3_finalize(s);
+    sqlite3_close(myDatabase);
+
+    vector < string > titles = {"Title :     ", "Author :    ", "Year :      ", "Genres :    ", "Subgenres : ", "Rating :    "};
+    size_t it = 0;
+    int i = 0;
+    while((it = book_info.find("#", it)) != string::npos){
+        string replace_delim = "\n      *" + titles[i++];
+        book_info.replace(it, 1, replace_delim);
+        it += 8;
+    }
+    
+    printf("*%s*\n", book_info.c_str());
+
+    return book_info;
+}
+
+string User::recommend(){
     if(recommendations.size() == 0)
         return "You have no activity. We can't recommend you anything yet!\n";
     
@@ -259,10 +360,10 @@ const char *User::recommend(){
 
 void User::updateRec(Book b){
     for(int i = 0; i < recommendations.size(); i++){
-        if(strcmp(recommendations[i].second.c_str(), b.isbn) == 0){
+        if(strcmp(recommendations[i].second.c_str(), b.getISBN()) == 0){
             recommendations[i].first++;
             return;
         }
     }
-    recommendations.push_back(make_pair(1, b.isbn));
+    recommendations.push_back(make_pair(1, b.getISBN()));
 }
