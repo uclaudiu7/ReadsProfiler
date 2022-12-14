@@ -60,6 +60,29 @@ void User::initializeDownloads(){
     sqlite3_close(myDatabase);
 }
 
+bool insertIntoTable(string sql){
+    sqlite3* myDatabase;
+    char *ErrMsg = 0;
+    int run;
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+        return "Couldn't open database!\n";
+    }
+
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+
+    run = sqlite3_exec(myDatabase, sql_statement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL Error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+        return false;
+    }
+    sqlite3_close(myDatabase);
+    return true;
+}
+ 
 string User::getName(){ return this->name; }
 
 bool User::isLogged(){ return this->log_status; }
@@ -364,29 +387,13 @@ string User::downloadBook(){
         return "You must view a book first!\n";
     downloads.push_back(last_view);
 
-    sqlite3* myDatabase;
-    string sql, response;
-    char *ErrMsg = 0;
-    int run;
-
-    run = sqlite3_open("database.db", &myDatabase);
-    if(run){
-        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
-        return "Couldn't open database!\n";
-    }
-    
-    sql = "INSERT INTO DOWNLOADS(username, isbn) VALUES ('";
+    string sql = "INSERT INTO DOWNLOADS(username, isbn) VALUES ('";
     sql = sql + this->getName() + "', '" + last_view.getISBN() + "');";
-    const char *sql_statement = const_cast<char*>(sql.c_str());
 
-    run = sqlite3_exec(myDatabase, sql_statement, callback, 0, &ErrMsg);
-    if(run != SQLITE_OK){
-        fprintf(stderr, "SQL Error: %s\n", ErrMsg);
-        sqlite3_free(ErrMsg);
-    }
-    sqlite3_close(myDatabase);
-
-    return "Downloaded your last viewed book! You can use 'downloads' to view your downloaded books!\n";
+    if(insertIntoTable(sql) == true)
+        return "Downloaded your last viewed book! You can use 'downloads' to view your downloaded books!\n";
+    else
+        return "We've encountered an error. Please try again!\n";
 }
 
 string User::getDownloads(){

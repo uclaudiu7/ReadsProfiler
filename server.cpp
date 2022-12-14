@@ -152,12 +152,12 @@ void createDatabase(){
                  "GENRE TEXT NOT NULL, " \
                  "SUBGENRE TEXT NOT NULL, " \
                  "YEAR TEXT NOT NULL, " \
-                 "RATING TEXT NOT NULL);";
+                 "RATING NUMERIC NOT NULL);";
     createTable(sqlStatement, "BOOKS");
 
     sqlStatement = "CREATE TABLE DOWNLOADS(" \
                  "DOWNLOAD_ID INTEGER PRIMARY KEY NOT NULL, " \
-                 "USERNAME TEXT NOT NULL, " \ 
+                 "USERNAME TEXT NOT NULL, " \
                  "ISBN TEXT NOT NULL);";
     createTable(sqlStatement, "DOWNLOADS");
 
@@ -179,7 +179,11 @@ string handleRegister(char command[100], User &u){
         return "Please register using following command: register 'username' 'password' 'password'!\n";
 }
 
-string handleDelete(User &u){ return u.deleteUser(); }
+string handleDelete(User &u){
+    if(u.isLogged() == false)
+        return "You must login first!\n";
+    return u.deleteUser();
+}
 
 string handleLogin(char command[100], User &u){
     if(u.isLogged())
@@ -195,6 +199,8 @@ string handleLogin(char command[100], User &u){
 }
 
 string handleLogout(User &u){
+    if(u.isLogged() == false)
+        return "You must login first!\n";
     return u.logoutUser();
 }
 
@@ -237,10 +243,6 @@ string handleSearch(char command[400], User &u){
 }
 
 string handleView(char command[400], User &u){
-    /*
-    if(u.isLogged() == false)
-        return "You must login first!\n";
-    */
     if(u.canView() == false)
         return "You must search something first!\n";
     int search_index;
@@ -254,14 +256,20 @@ string handleView(char command[400], User &u){
 string handleLastView(User u){ return u.getLastView(); }
 
 string handleDownload(User &u){
+    if(u.isLogged() == false)
+        return "You must login first!\n";
     return u.downloadBook();
 }
 
 string handleDownloads(User &u){
+    if(u.isLogged() == false)
+        return "You must login first!\n";
     return u.getDownloads();
 }
 
 string handleRecommend(User &u){
+    if(u.isLogged() == false)
+        return "You must login first!\n";
     return u.recommend();
 }
 
