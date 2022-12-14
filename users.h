@@ -10,7 +10,7 @@ class User{
         bool log_status;
         bool view_flag;
         bool download_flag;
-        char name[20];
+        string name;
         vector < pair <int,string> > recommendations;
         vector < string > last_search;
         vector < Book > downloads;
@@ -33,4 +33,5 @@ class User{
         string recommend();
 
         void updateRec(Book b);
+        void initializeDownloads();
 };

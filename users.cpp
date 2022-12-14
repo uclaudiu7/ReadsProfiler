@@ -20,7 +20,45 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
     return 0;
 }
 
-User::User(){ this->log_status = false; this->view_flag = false;}
+User::User(){
+    this->log_status = false; 
+    this->view_flag = false;
+}
+
+void User::initializeDownloads(){
+    this->downloads.clear();
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    char *ErrMsg = 0;
+    int run;
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+    }
+
+    string sql = "SELECT ISBN FROM DOWNLOADS WHERE USERNAME = '";
+    sql = sql + this->getName() + "';";
+
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *line = (char*)sqlite3_column_text(s, 0);
+        this->downloads.push_back(Book(line));
+    }
+
+    if(run != SQLITE_DONE)
+        printf("Error!\n");
+
+    sqlite3_finalize(s);
+    sqlite3_close(myDatabase);
+}
 
 string User::getName(){ return this->name; }
 
@@ -30,9 +68,8 @@ bool User::canView(){ return this->view_flag; }
 
 string User::registerUser(char username[20], char password[20]){
     sqlite3* myDatabase;
+    string sql, response;
     char *ErrMsg = 0;
-    char sqlChar[100];
-    char responseChar[200];
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
@@ -41,39 +78,29 @@ string User::registerUser(char username[20], char password[20]){
         return "Couldn't open database!\n";
     }
     
-    strcpy(sqlChar, "INSERT INTO USERS VALUES (");
-    strcat(sqlChar, "'");
-    strcat(sqlChar, username);
-    strcat(sqlChar, "', '");
-    strcat(sqlChar, password);
-    strcat(sqlChar, "');");
+    sql = "INSERT INTO USERS VALUES ('";
+    sql = sql + username + "', '" + password + "');";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
 
-    char *sqlStatement = new char[100];
-    strcpy(sqlStatement, sqlChar);
-
-    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    run = sqlite3_exec(myDatabase, sql_statement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
-        strcpy(responseChar, "User '");
-        strcat(responseChar, username);
-        strcat(responseChar, "' already exists. Try a different username!\n");
+        response = "User '";
+        response = response + username + "' already exists. Try a different username!\n";
         
         fprintf(stderr, "SQL Error: %s\n", ErrMsg);
         printf("User '%s' already exists. Try a different username!\n", username);
         sqlite3_free(ErrMsg);
     }
     else{
-        strcpy(responseChar, "User '");
-        strcat(responseChar, username);
-        strcat(responseChar, "' registered successfully!\n");
+        response = "User '";
+        response = response + username + "' registered successfully!\n";
+        
         printf("User '%s' registered successfully!\n", username);
         this->log_status = true;
-        strcpy(this->name, username);
+        this->name = username;
     }
     sqlite3_close(myDatabase);
 
-    char *response = new char[strlen(responseChar)];
-    strcpy(response, responseChar);
-    printf("AICI: '%s'\n", response);
     return response;
 }
 
@@ -82,9 +109,8 @@ string User::deleteUser(){
         return "You must be logged in first!\n";
     
     sqlite3* myDatabase;
+    string sql, response;
     char *ErrMsg = 0;
-    char sqlChar[100];
-    char responseChar[200];
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
@@ -93,38 +119,31 @@ string User::deleteUser(){
         return "Couldn't open database!\n";
     }
 
-    strcpy(sqlChar, "DELETE FROM USERS WHERE USERNAME='");
-    strcat(sqlChar, this->name);
-    strcat(sqlChar, "';");
+    sql = "DELETE FROM USERS WHERE USERNAME = '";
+    sql = sql + this->getName() + "';";
 
-    char *sqlStatement = new char[100];
-    strcpy(sqlStatement, sqlChar);    
+    const char *sql_statement = const_cast<char*>(sql.c_str());   
 
-    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    run = sqlite3_exec(myDatabase, sql_statement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
         return "SQL Error!\n";
         sqlite3_free(ErrMsg);
     }
     else{
-        strcpy(responseChar, "User '");
-        strcat(responseChar, this->name);
-        strcat(responseChar, "' deleted from database!\n");
+        response = "User '";
+        response = response + this->getName() + "' deleted from database!\n";
         this->log_status = false;
-        //printf("User '%s' deleted from database!\n", username);
     }
     sqlite3_close(myDatabase);
 
-    char *response = new char[strlen(responseChar)];
-    strcpy(response, responseChar);
     return response;
 }
 
 string User::loginUser(char *username, char *password){
     sqlite3* myDatabase;
     sqlite3_stmt *s;
+    string sql, response;
     char *ErrMsg = 0;
-    char sqlChar[100];
-    char responseChar[200];
     int run;
 
     run = sqlite3_open("database.db", &myDatabase);
@@ -133,15 +152,12 @@ string User::loginUser(char *username, char *password){
         return "Couldn't open database!\n";
     }
 
-    strcpy(sqlChar, "SELECT USERNAME FROM USERS WHERE USERNAME='");
-    strcat(sqlChar, username);
-    strcat(sqlChar, "' AND PASSWORD='");
-    strcat(sqlChar, password);
-    strcat(sqlChar, "';");
-    char *sqlStatement = new char[100];
-    strcpy(sqlStatement, sqlChar);    
+    sql = "SELECT USERNAME FROM USERS WHERE USERNAME = '";
+    sql = sql + username + "' AND PASSWORD = '" + password + "';";
 
-    run = sqlite3_prepare_v2(myDatabase, sqlStatement, -1, &s, NULL);
+    const char *sql_statement = const_cast<char*>(sql.c_str());    
+
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
     if(run != SQLITE_OK){
         fprintf(stderr, "SQL error: %s\n", ErrMsg);
         sqlite3_free(ErrMsg);
@@ -149,22 +165,17 @@ string User::loginUser(char *username, char *password){
 
     run = sqlite3_step(s);
     if(run == SQLITE_ROW){
-        //printf("Successfully connected as '%s'!\n", username);
-        strcpy(responseChar, "Successfully connected as '");
-        strcat(responseChar, username);
-        strcat(responseChar, "'!\n");
+        response = "Successfully connected as '";
+        response = response + username + "'!\n";
         log_status = true;
-        strcpy(this->name, username);
+        this->name = username;
     }
     else{
-        //printf("User '%s' not found. Please try loggin in again!\n", username);
-        strcpy(responseChar, "Wrong credentials. Please try again!\n");  
+        response = "Wrong credentials. Please try again!\n";
     }
     sqlite3_finalize(s);
     sqlite3_close(myDatabase);
 
-    char *response = new char[strlen(responseChar)];
-    strcpy(response, responseChar);
     return response;
 }   
 
@@ -173,6 +184,7 @@ string User::logoutUser(){
     this->view_flag = false;
     this->last_search.clear();
     this->recommendations.clear();
+    this->downloads.clear();
     return "Logged out!\n";
 }
 
@@ -339,7 +351,6 @@ string User::viewBook(int search_index){
 
     Book b(book_isbn);
     this->last_view = b;
-
     this->download_flag = true;
     return book_info;
 }
@@ -351,12 +362,38 @@ string User::getLastView(){
 string User::downloadBook(){
     if(last_view.isEmpty())
         return "You must view a book first!\n";
-
     downloads.push_back(last_view);
+
+    sqlite3* myDatabase;
+    string sql, response;
+    char *ErrMsg = 0;
+    int run;
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+        return "Couldn't open database!\n";
+    }
+    
+    sql = "INSERT INTO DOWNLOADS(username, isbn) VALUES ('";
+    sql = sql + this->getName() + "', '" + last_view.getISBN() + "');";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+
+    run = sqlite3_exec(myDatabase, sql_statement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL Error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    sqlite3_close(myDatabase);
+
     return "Downloaded your last viewed book! You can use 'downloads' to view your downloaded books!\n";
 }
 
 string User::getDownloads(){
+    this->initializeDownloads();
+    if(downloads.size() == 0)
+        return "You haven't downloaded a book yet!\n";
+    
     string result = "You've downloaded these books so far: \n";
     for(int i = 0; i < downloads.size(); i++){
         result += "\n         • ";
@@ -364,7 +401,6 @@ string User::getDownloads(){
     }
     return result;
 }
-
 
 string User::recommend(){
     if(recommendations.size() == 0)

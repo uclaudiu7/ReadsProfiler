@@ -16,7 +16,7 @@
 
 using namespace std;
 
-#define PORT 3002
+#define PORT 3000
 #define MAX_THREADS 100
 
 pthread_t threads[MAX_THREADS];
@@ -48,7 +48,6 @@ void addDefaultBooks(){
                     "'Harry Potter and the Philosopher`s Stone', " \
                     "'J.K.Rowling', " \
                     "'1997', 'Magic', 'Fiction', '10');";
-    printf("---->> *%s*\n", sqlStatement);
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
         fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
@@ -157,8 +156,10 @@ void createDatabase(){
     createTable(sqlStatement, "BOOKS");
 
     sqlStatement = "CREATE TABLE DOWNLOADS(" \
-                 "CODE TEXT PRIMARY KEY NOT NULL);";
-    createTable(sqlStatement, "BOOKS");
+                 "DOWNLOAD_ID INTEGER PRIMARY KEY NOT NULL, " \
+                 "USERNAME TEXT NOT NULL, " \ 
+                 "ISBN TEXT NOT NULL);";
+    createTable(sqlStatement, "DOWNLOADS");
 
     addDefaultBooks();
 }
@@ -199,7 +200,7 @@ string handleLogout(User &u){
 
 string handleStatus(User &u){
     if(u.isLogged() == true)
-        return "You are logged in!\n";
+        return "You are logged in as '" + u.getName() + "'!\n";
     else
         return "You are not logged in!\n";
 }
