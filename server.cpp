@@ -158,8 +158,16 @@ void createDatabase(){
     sqlStatement = "CREATE TABLE DOWNLOADS(" \
                  "DOWNLOAD_ID INTEGER PRIMARY KEY NOT NULL, " \
                  "USERNAME TEXT NOT NULL, " \
+                 "RANK INTEGER NOT NULL, " \
                  "ISBN TEXT NOT NULL);";
     createTable(sqlStatement, "DOWNLOADS");
+
+    sqlStatement = "CREATE TABLE RECOMMENDATIONS(" \
+                 "RECOM_ID INTEGER PRIMARY KEY NOT NULL, " \
+                 "USERNAME TEXT NOT NULL, " \
+                 "RANK INTEGER NOT NULL, " \
+                 "ISBN TEXT NOT NULL);";
+    createTable(sqlStatement, "RECOMMENDATIONS");
 
     addDefaultBooks();
 }

@@ -23,6 +23,8 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 User::User(){
     this->log_status = false; 
     this->view_flag = false;
+    initializeDownloads();
+    initializeRecommendations();
 }
 
 void User::initializeDownloads(){
@@ -51,6 +53,47 @@ void User::initializeDownloads(){
     while((run = sqlite3_step(s)) == SQLITE_ROW){
         char *line = (char*)sqlite3_column_text(s, 0);
         this->downloads.push_back(Book(line));
+    }
+
+    if(run != SQLITE_DONE)
+        printf("Error!\n");
+
+    sqlite3_finalize(s);
+    sqlite3_close(myDatabase);
+}
+
+void User::initializeRecommendations(){
+    this->recommendations.clear();
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    char *ErrMsg = 0;
+    int run;
+
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run){
+        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
+    }
+
+    string sql = "SELECT RANK||'#'||ISBN FROM RECOMMENDATIONS WHERE USERNAME = '";
+    sql = sql + this->getName() + "';";
+
+    cout << sql << endl;
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "SQL error: %s\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *temp = (char*)sqlite3_column_text(s, 0);
+        string line = temp, recom_isbn;
+        int rank, delim_pos = line.find("#");
+        rank = stoi(line.substr(0, delim_pos));
+        recom_isbn = line.substr(delim_pos + 1);
+
+        this->recommendations.push_back(make_pair(rank, recom_isbn));
     }
 
     if(run != SQLITE_DONE)
@@ -192,12 +235,15 @@ string User::loginUser(char *username, char *password){
         response = response + username + "'!\n";
         log_status = true;
         this->name = username;
+        this->initializeDownloads();
+        this->initializeRecommendations();
     }
     else{
         response = "Wrong credentials. Please try again!\n";
     }
     sqlite3_finalize(s);
     sqlite3_close(myDatabase);
+
 
     return response;
 }   
@@ -311,10 +357,14 @@ string User::searchBook(Book b){
         for(int i = 0; i < query_result.size(); i++){
             string query_isbn = query_result[i].substr(0,13);
             result = result + "         ";
+            result += "📚 ";
             result += to_string(i+1);
             result += ". ";
             result += query_result[i].substr(14);
             result += "\n";
+
+            Book b(query_isbn);
+            updateRec(b, 1);
         }
         result += "\n[server]--> To view a book type view 'index'!\n";
     }
@@ -373,6 +423,7 @@ string User::viewBook(int search_index){
     printf("*%s*\n", book_info.c_str());
 
     Book b(book_isbn);
+    updateRec(b, 2);
     this->last_view = b;
     this->download_flag = true;
     return book_info;
@@ -397,7 +448,6 @@ string User::downloadBook(){
 }
 
 string User::getDownloads(){
-    this->initializeDownloads();
     if(downloads.size() == 0)
         return "You haven't downloaded a book yet!\n";
     
@@ -410,10 +460,14 @@ string User::getDownloads(){
 }
 
 string User::recommend(){
+
     if(recommendations.size() == 0)
         return "You have no activity. We can't recommend you anything yet!\n";
     
-    //sort(recommendations.begin(), recommendations.end(), greater<int>());
+    for(int i = 0; i < recommendations.size()-1; i++)
+        for(int j = 1; j < recommendations.size(); j++)
+            if(recommendations[i].first < recommendations[j].first)
+                swap(recommendations[i], recommendations[j]);
 
     char charResult[500];
     strcpy(charResult, "Here are some books you might like:\n\n");
@@ -431,12 +485,19 @@ string User::recommend(){
     return result;
 }
 
-void User::updateRec(Book b){
+void User::updateRec(Book b, int recom_strength){
     for(int i = 0; i < recommendations.size(); i++){
         if( recommendations[i].second == b.getISBN() ){
-            recommendations[i].first++;
+            recommendations[i].first += recom_strength;
+            string sql = "UPDATE RECOMMENDATIONS SET rank=rank+1 WHERE username='";
+            sql = sql + this->getName() + "' " + "AND isbn='" + b.getISBN() + "';";
+            insertIntoTable(sql);
             return;
         }
     }
-    recommendations.push_back(make_pair(1, b.getISBN()));
+    string sql = "INSERT INTO RECOMMENDATIONS(username, rank, isbn) VALUES ('";
+    sql = sql + this->getName() + "', '" + to_string(recom_strength) + "', '" + b.getISBN() + "');";
+    insertIntoTable(sql);
+
+    recommendations.push_back(make_pair(recom_strength, b.getISBN()));
 }

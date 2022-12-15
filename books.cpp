@@ -20,7 +20,10 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName)
 
 Book::Book() {}
 
-Book::Book(string my_isbn) : isbn(my_isbn) {}
+Book::Book(string my_isbn){
+    isbn = my_isbn;
+    
+}
 
 Book::Book(string my_isbn, string my_author, string my_title,
            string my_genres, string my_year, string my_rating)
