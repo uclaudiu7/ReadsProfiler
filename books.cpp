@@ -1,3 +1,4 @@
+#include <iostream>
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,46 @@ Book::Book() {}
 
 Book::Book(string my_isbn){
     isbn = my_isbn;
+
+    sqlite3 *myDatabase;
+    int run = sqlite3_open("database.db", &myDatabase);
+    if(run != SQLITE_OK){
+        printf("SQL error open!\n");
+    }
+
+    sqlite3_stmt *stmt;
+    string sql = "SELECT title, author, genre, subgenre, year, rating ";
+    sql += "FROM books WHERE isbn = '" + my_isbn + "';";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &stmt, NULL);
+    if(run != SQLITE_OK){
+        printf("SQL error prepare!\n");
+    }
+
+    if(sqlite3_step(stmt) == SQLITE_ROW){
+        char *sql_title = (char*)sqlite3_column_text(stmt, 0);
+        this->title = sql_title;
+
+        char *sql_author = (char*)sqlite3_column_text(stmt, 1);
+        this->author = sql_author;
+
+        char *sql_genre = (char*)sqlite3_column_text(stmt, 2);
+        this->genres = sql_genre;
+
+        char *sql_subgenre = (char*)sqlite3_column_text(stmt, 3);
+        this->subgenres = sql_subgenre;
+
+        char *sql_year = (char*)sqlite3_column_text(stmt, 4);
+        this->year = sql_year;
+
+        char *sql_rating = (char*)sqlite3_column_text(stmt, 5);
+        this->rating = sql_rating;
+    }
+    else
+        printf("SQL error!\n");
+    
+    sqlite3_finalize(stmt);
+    sqlite3_close(myDatabase);
     
 }
 

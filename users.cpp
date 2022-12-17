@@ -76,8 +76,6 @@ void User::initializeRecommendations(){
 
     string sql = "SELECT RANK||'#'||ISBN FROM RECOMMENDATIONS WHERE USERNAME = '";
     sql = sql + this->getName() + "';";
-
-    cout << sql << endl;
     const char *sql_statement = const_cast<char*>(sql.c_str());
 
     run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
@@ -122,6 +120,7 @@ bool insertIntoTable(string sql){
         sqlite3_free(ErrMsg);
         return false;
     }
+    printf("da\n");
     sqlite3_close(myDatabase);
     return true;
 }
@@ -326,7 +325,6 @@ string User::searchBook(Book b){
     }
 
     string str = createSqlStatement(b);
-    cout << str << endl;
     const char *sql_statement = const_cast<char*>(str.c_str());
 
     run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
@@ -381,37 +379,9 @@ string User::viewBook(int search_index){
     int run;
     string book_isbn = last_search[search_index-1].substr(0, 13);
 
-    run = sqlite3_open("database.db", &myDatabase);
-    if(run){
-        fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
-        return "Couldn't open database!\n";
-    }
-
-    string sql = "SELECT isbn||'#'||title||'#'||author||'#'||genre||'#'||";
-    sql += "subgenre||'#'||year||'#'||rating ";
-    sql += "FROM books WHERE isbn = '" + book_isbn + "';";
-
-    const char *sql_statement = const_cast<char*>(sql.c_str());
-
-    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
-    if(run != SQLITE_OK){
-        fprintf(stderr, "SQL error: %s\n", ErrMsg);
-        sqlite3_free(ErrMsg);
-    }
-    
-    string book_info = "Here's some details about your selected book:\n\n         • ISBN:       ";
-    while((run = sqlite3_step(s)) == SQLITE_ROW){
-        char *line = (char*)sqlite3_column_text(s, 0);
-        book_info += line;
-    }
-
-    if(run != SQLITE_DONE)
-        printf("Error!\n");
-
-    sqlite3_finalize(s);
-    sqlite3_close(myDatabase);
-
-    vector < string > titles = {"Title :     ", "Author :    ", "Year :      ", "Genres :    ", "Subgenres : ", "Rating :    "};
+    Book b(book_isbn);
+    string book_info = "\n#" + book_isbn + "#" + b.getTitle() + "#" +  b.getAuthor() + "#" + b.getYear() + "#" + b.getGenres() + "#" + b.getRating();
+    vector < string > titles = {"ISBN :      ", "Title :     ", "Author :    ", "Year :      ", "Genres :    ", "Rating :    "};
     size_t it = 0;
     int i = 0;
     while((it = book_info.find("#", it)) != string::npos){
@@ -419,11 +389,8 @@ string User::viewBook(int search_index){
         book_info.replace(it, 1, replace_delim);
         it += 8;
     }
-    
-    printf("*%s*\n", book_info.c_str());
 
-    Book b(book_isbn);
-    updateRec(b, 2);
+    recSimilarBooks(b, 3);
     this->last_view = b;
     this->download_flag = true;
     return book_info;
@@ -441,8 +408,10 @@ string User::downloadBook(){
     string sql = "INSERT INTO DOWNLOADS(username, isbn) VALUES ('";
     sql = sql + this->getName() + "', '" + last_view.getISBN() + "');";
 
-    if(insertIntoTable(sql) == true)
+    if(insertIntoTable(sql) == true){
+        recSimilarBooks(last_view, 6);
         return "Downloaded your last viewed book! You can use 'downloads' to view your downloaded books!\n";
+    }
     else
         return "We've encountered an error. Please try again!\n";
 }
@@ -457,6 +426,39 @@ string User::getDownloads(){
         result += downloads[i].getISBN();
     }
     return result;
+}
+
+void User::recSimilarBooks(Book b, int recom_strength){
+    string isbn = b.getISBN();
+    string author = b.getAuthor();
+    string genres = b.getGenres();
+    vector < Book > similar_books;
+
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    int run = sqlite3_open("database.db", &myDatabase);
+    if(run != SQLITE_OK)
+        return;
+
+    string sql = "SELECT isbn FROM BOOKS WHERE author = '" + author;
+    sql = sql + "' OR genre = '" + genres + "';";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
+    if(run != SQLITE_OK)
+        return;
+
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *line = (char*)sqlite3_column_text(s, 0);
+        string similar_book_isbn = line;
+        Book b(similar_book_isbn);
+        similar_books.push_back(b);
+    }
+    sqlite3_finalize(s);
+    sqlite3_close(myDatabase);
+
+    for(int i = 0; i < similar_books.size(); i++)
+        updateRec(similar_books[i], recom_strength);
 }
 
 string User::recommend(){
@@ -489,7 +491,7 @@ void User::updateRec(Book b, int recom_strength){
     for(int i = 0; i < recommendations.size(); i++){
         if( recommendations[i].second == b.getISBN() ){
             recommendations[i].first += recom_strength;
-            string sql = "UPDATE RECOMMENDATIONS SET rank=rank+1 WHERE username='";
+            string sql = "UPDATE RECOMMENDATIONS SET rank=rank+" + to_string(recom_strength) + " WHERE username='";
             sql = sql + this->getName() + "' " + "AND isbn='" + b.getISBN() + "';";
             insertIntoTable(sql);
             return;

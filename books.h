@@ -10,6 +10,7 @@ class Book{
         string author;
         string year;
         string genres;
+        string subgenres;
         string rating;
     public:
         Book();

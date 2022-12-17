@@ -32,6 +32,7 @@ class User{
         string getDownloads();
         string recommend();
 
+        void recSimilarBooks(Book b, int recom_strength);
         void updateRec(Book b, int recom_strength);
         void initializeDownloads();
         void initializeRecommendations();
