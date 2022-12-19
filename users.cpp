@@ -404,11 +404,11 @@ string User::viewBook(int search_index){
 string User::viewRecommend(int recom_index){
     if(recom_index > recommendations.size() || recom_index > 5 || recom_index < 1)
         return "Invalid index!\n";
-    string book_isbn = recommendations[recom_index-1].second;
+    string book_isbn = last_search[recom_index-1];
 
     Book b(book_isbn);
     string book_info = "Here are some details about the selected book:\n#" + book_isbn + "#" + b.getTitle() + "#" +  b.getAuthor() + "#" + b.getYear() + "#" + b.getGenres() + "#" + b.getRating();
-    vector < string > titles = {"ISBN :      ", "Title :     ", "Author :    ", "Year :      ", "Genres :    ", "Rating :    "};
+    vector < string > titles = {"ISBN :      ", "Title :     ", "Author :    ", "Genres :    ", "Year :      ", "Rating :    "};
     size_t it = 0;
     int i = 0;
     while((it = book_info.find("#", it)) != string::npos){
@@ -578,10 +578,12 @@ string User::recommend(){
     char charResult[500];
     strcpy(charResult, "Here are some books you might like:\n\n");
     int count = 0;
+    last_search.clear();
     for(int i = 0; i < recommendations.size() && count < 5; i++){
         Book b(recommendations[i].second);
         if(isDownloaded(b, downloads) == false){
             string book_title = b.getTitle();
+            last_search.push_back(b.getISBN());
             char index[15];
             sprintf(index, "         %d. ", count+1);
             strcat(charResult, index);
