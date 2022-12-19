@@ -578,7 +578,7 @@ string User::recommend(){
     char charResult[500];
     strcpy(charResult, "Here are some books you might like:\n\n");
     int count = 0;
-    for(int i = 0; i < recommendations.size() && count <= 5; i++){
+    for(int i = 0; i < recommendations.size() && count < 5; i++){
         Book b(recommendations[i].second);
         if(isDownloaded(b, downloads) == false){
             string book_title = b.getTitle();
