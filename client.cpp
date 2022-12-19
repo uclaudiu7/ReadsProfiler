@@ -90,5 +90,4 @@ int main(int argc, char *argv[])
             break;
     }
     close(sd);
-    return 0;
 }

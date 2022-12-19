@@ -357,7 +357,7 @@ string User::searchBook(Book b){
         this->last_search = query_result;
         this->view_type = "search";
         result += "We found these books matching your search criteria:\n\n";
-        for(int i = 0; i < query_result.size(); i++){
+        for(int i = 0; i < query_result.size() && i <= 5; i++){
             string query_isbn = query_result[i].substr(0,13);
             result = result + "         ";
             result += "📚 ";
@@ -561,6 +561,13 @@ void User::updateRec(Book b, int recom_strength){
     recommendations.push_back(make_pair(recom_strength, b.getISBN()));
 }
 
+bool isDownloaded(Book b, vector < Book > downloads){
+    for(int i = 0; i < downloads.size(); i++)
+        if(b.getISBN() == downloads[i].getISBN())
+            return true;
+    return false;
+}
+
 string User::recommend(){
     if(recommendations.size() == 0)
         return "You have no activity. We can't recommend you anything yet!\n";
@@ -570,14 +577,18 @@ string User::recommend(){
     
     char charResult[500];
     strcpy(charResult, "Here are some books you might like:\n\n");
-    for(int i = 0; i < recommendations.size() && i <= 5; i++){
+    int count = 0;
+    for(int i = 0; i < recommendations.size() && count <= 5; i++){
         Book b(recommendations[i].second);
-        string book_title = b.getTitle();
-        char index[15];
-        sprintf(index, "         %d. ", i+1);
-        strcat(charResult, index);
-        strcat(charResult, book_title.c_str());
-        strcat(charResult, "\n");
+        if(isDownloaded(b, downloads) == false){
+            string book_title = b.getTitle();
+            char index[15];
+            sprintf(index, "         %d. ", count+1);
+            strcat(charResult, index);
+            strcat(charResult, book_title.c_str());
+            strcat(charResult, "\n");
+            count++;
+        }
     }
     strcat(charResult, "\n[server]--> To view a book type view 'index'!\n");
     this->view_type = "recommend";

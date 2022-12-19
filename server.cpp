@@ -19,7 +19,11 @@ using namespace std;
 #define PORT 3002
 #define MAX_THREADS 100
 
-pthread_t threads[MAX_THREADS];
+typedef struct thData{
+	int idThread; //id-ul thread-ului tinut in evidenta de acest program
+	int cl;       //descriptorul intors de accept
+}thData;
+
 sqlite3* myDatabase;
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
@@ -44,9 +48,64 @@ void addDefaultBooks(){
         return;
     }
     
+    sqlStatement = "INSERT INTO BOOKS VALUES('9781035003426', " \
+                    "'Burial of Ghosts', " \
+                    "'Ann Cleeves', " \
+                    "'2022', 'Crime', 'Fiction', '8');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+
+    sqlStatement = "INSERT INTO BOOKS VALUES('9781509889624', " \
+                    "'The Rising Tide', " \
+                    "'Ann Cleeves', " \
+                    "'2021', 'Mistery', 'Fiction', '8');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+
+    sqlStatement = "INSERT INTO BOOKS VALUES('9781529049602', " \
+                    "'Date with Betrayal', " \
+                    "'Julia Chapman', " \
+                    "'2022', 'Crime', 'Mistery', '10');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+
+    sqlStatement = "INSERT INTO BOOKS VALUES('9781529097993', " \
+                    "'The Cat Who Caught a Killer', " \
+                    "'L. T. Shearer', " \
+                    "'2020', 'Mistery', 'Crime', '9');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+    
+    sqlStatement = "INSERT INTO BOOKS VALUES('9780399588174', " \
+                    "'Born a Crime', " \
+                    "'Trevor Noah', " \
+                    "'2016', 'Biography', 'Comedy', '6');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding book: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Book added!\n");}
+
     sqlStatement = "INSERT INTO BOOKS VALUES('9780747532743', " \
                     "'Harry Potter and the Philosopher`s Stone', " \
-                    "'J.K.Rowling', " \
+                    "'J. K. Rowling', " \
                     "'1997', 'Magic', 'Fiction', '10');";
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
@@ -116,6 +175,38 @@ void addDefaultBooks(){
     else{ printf("Author added!\n");}
 
     sqlStatement = "INSERT INTO AUTHORS VALUES('Gregg Olsen', 'nonfiction, biography');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('Ann Cleeves', 'crime, fiction, mistery');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('Julia Chapman', 'crime, mistery');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('L. T. Shearer', 'mistery, crime');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('Trevor Noah', 'comedy, biography');";
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
         fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
@@ -371,48 +462,68 @@ string handleCommand(char command[400], User &u){
     return "Invalid command. Type 'help' to display available commands!\n";
 }
 
-void *handleThread(void *arg){
-    int client = *(int *)arg;
-    char command[400];
+void raspunde(void *arg){
+    int nr, i=0;
+	struct thData tdL; 
+	tdL= *((struct thData*)arg);
+	char command[400];
     char response[400];
     User u;
 
     while(1){
         bzero(command, 400);
 
-        if(read(client, command, 400) <= 0){
+        if(read(tdL.cl, command, 400) <= 0){
             perror("[server]Eroare la read() de la client.\n");
         }
 
         printf("[client]--> %s\n", command);
 
         if(strncmp("stop", command, 4) == 0){
-            write(client, "Server stopped!\n", 16);
+            write(tdL.cl, "Server stopped!\n", 16);
+            break;
         }
 
         string handle_string = handleCommand(command, u);
         const char *temp = handle_string.c_str();
         strcpy(response, temp);
 
-        write(client, response, strlen(response));
+        write(tdL.cl, response, strlen(response));
         bzero(response, 400);
     }
-
-    close(client);
-    return NULL;
 }
+
+static void *treat(void * arg){		
+    struct thData tdL; 
+    tdL= *((struct thData*)arg);	
+    printf ("[new thread created]\n");
+    fflush (stdout);		 
+    pthread_detach(pthread_self());	
+    raspunde((struct thData*)arg);
+    /* am terminat cu acest client, inchidem conexiunea */
+    close ((intptr_t)arg);
+    return(NULL);  
+};
 
 int main(){
     struct sockaddr_in server;
     struct sockaddr_in from;
+    int nr;
+    int sd;
+    int pid;
+    pthread_t th[100];
+    int i = 0;
+
     char command[400];
     char response[400];
-    int sd;
 
     if((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("[server]Eroare la socket().\n");
         return errno;
     }
+
+    int on = 1;
+    setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
     bzero(&server, sizeof(server));   // preparing data structures
     bzero(&from, sizeof(from));
@@ -426,32 +537,29 @@ int main(){
         return errno;
     }
 
-    if(listen(sd, 5) == -1){
+    if(listen(sd, MAX_THREADS) == -1){
         perror("[server]Eroare la listen().\n");
         return errno;
     }
-
     createDatabase();
 
-    //User u;
     while(1){
         bzero(command, 400);
-        int client = accept(sd, NULL, NULL);
-        int threadIndex = 0;
+        int client;
+        thData * td;
+        socklen_t length = sizeof(from);
 
-        while(threads[threadIndex] != 0 && threadIndex < MAX_THREADS)
-            threadIndex++;
+        if((client = accept(sd, (struct sockaddr *) &from, &length)) < 0){
+            perror("Error accepting connection!\n");
+            continue;
+        }
 
-        if(threadIndex < MAX_THREADS)
-            pthread_create(&threads[threadIndex], NULL, handleThread, &client);
+        td = (struct thData*)malloc(sizeof(struct thData));
+        td->idThread++;
+        td->cl = client;
+
+        pthread_create(&th[i], NULL, &treat, td);
     }
-
-
-    /*###### Closing the server socket and joining all of the threads we created ######*/
-    close(sd);
-    for(int i = 0; i < 100; i++)
-        if(threads[i] != 0)
-            pthread_join(threads[i], NULL);
 
     return 0;
 }
