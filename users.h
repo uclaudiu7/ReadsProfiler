@@ -8,8 +8,8 @@ using namespace std;
 class User{
     private:
         bool log_status;
-        bool view_flag;
         bool download_flag;
+        string view_type;
         string name;
         vector < pair <int,string> > recommendations;
         vector < string > last_search;
@@ -17,8 +17,8 @@ class User{
         Book last_view;
     public:
         User();
+        User(string my_name);
         bool isLogged();
-        bool canView();
 
         string registerUser(char username[20], char password[20]);
         string deleteUser();
@@ -26,13 +26,15 @@ class User{
         string logoutUser();
         string getName();
         string searchBook(Book b);
+        string getViewType();
         string viewBook(int search_index);
-        string getLastView();
+        string viewRecommend(int recom_index);
         string downloadBook();
         string getDownloads();
         string recommend();
 
-        void recSimilarBooks(Book b, int recom_strength);
+        void findSimilarBooks(Book b, int recom_strength);
+        void findSimilarUsers();
         void updateRec(Book b, int recom_strength);
         void initializeDownloads();
         void initializeRecommendations();

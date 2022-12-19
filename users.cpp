@@ -22,7 +22,13 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 
 User::User(){
     this->log_status = false; 
-    this->view_flag = false;
+    this->view_type = "false";
+    initializeDownloads();
+    initializeRecommendations();
+}
+
+User::User(string my_name){
+    this->name = my_name;
     initializeDownloads();
     initializeRecommendations();
 }
@@ -120,7 +126,6 @@ bool insertIntoTable(string sql){
         sqlite3_free(ErrMsg);
         return false;
     }
-    printf("da\n");
     sqlite3_close(myDatabase);
     return true;
 }
@@ -129,7 +134,7 @@ string User::getName(){ return this->name; }
 
 bool User::isLogged(){ return this->log_status; }
 
-bool User::canView(){ return this->view_flag; }
+string User::getViewType(){ return this->view_type; }
 
 string User::registerUser(char username[20], char password[20]){
     sqlite3* myDatabase;
@@ -142,7 +147,7 @@ string User::registerUser(char username[20], char password[20]){
         fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(myDatabase));
         return "Couldn't open database!\n";
     }
-    
+
     sql = "INSERT INTO USERS VALUES ('";
     sql = sql + username + "', '" + password + "');";
     const char *sql_statement = const_cast<char*>(sql.c_str());
@@ -249,7 +254,7 @@ string User::loginUser(char *username, char *password){
 
 string User::logoutUser(){
     this->log_status = false;
-    this->view_flag = false;
+    this->view_type = "false";
     this->last_search.clear();
     this->recommendations.clear();
     this->downloads.clear();
@@ -350,7 +355,7 @@ string User::searchBook(Book b){
     }
     else{
         this->last_search = query_result;
-        this->view_flag = true;
+        this->view_type = "search";
         result += "We found these books matching your search criteria:\n\n";
         for(int i = 0; i < query_result.size(); i++){
             string query_isbn = query_result[i].substr(0,13);
@@ -380,7 +385,7 @@ string User::viewBook(int search_index){
     string book_isbn = last_search[search_index-1].substr(0, 13);
 
     Book b(book_isbn);
-    string book_info = "\n#" + book_isbn + "#" + b.getTitle() + "#" +  b.getAuthor() + "#" + b.getYear() + "#" + b.getGenres() + "#" + b.getRating();
+    string book_info = "Here are some details about the selected book:\n#" + book_isbn + "#" + b.getTitle() + "#" +  b.getAuthor() + "#" + b.getYear() + "#" + b.getGenres() + "#" + b.getRating();
     vector < string > titles = {"ISBN :      ", "Title :     ", "Author :    ", "Year :      ", "Genres :    ", "Rating :    "};
     size_t it = 0;
     int i = 0;
@@ -390,26 +395,64 @@ string User::viewBook(int search_index){
         it += 8;
     }
 
-    recSimilarBooks(b, 3);
+    findSimilarBooks(b, 3);
     this->last_view = b;
     this->download_flag = true;
     return book_info;
 }
 
-string User::getLastView(){
-    return this->last_view.getISBN();
+string User::viewRecommend(int recom_index){
+    if(recom_index > recommendations.size() || recom_index > 5 || recom_index < 1)
+        return "Invalid index!\n";
+    string book_isbn = recommendations[recom_index-1].second;
+
+    Book b(book_isbn);
+    string book_info = "Here are some details about the selected book:\n#" + book_isbn + "#" + b.getTitle() + "#" +  b.getAuthor() + "#" + b.getYear() + "#" + b.getGenres() + "#" + b.getRating();
+    vector < string > titles = {"ISBN :      ", "Title :     ", "Author :    ", "Year :      ", "Genres :    ", "Rating :    "};
+    size_t it = 0;
+    int i = 0;
+    while((it = book_info.find("#", it)) != string::npos){
+        string replace_delim = "\n         • " + titles[i++];
+        book_info.replace(it, 1, replace_delim);
+        it += 8;
+    }
+    this->last_view = b;
+    this->download_flag = true;
+    return book_info;
+}
+
+void removeFromRecom(Book b, string username){
+    sqlite3* myDatabase;
+    char *ErrMsg = 0;
+    int run = sqlite3_open("database.db", &myDatabase);
+    if(run)
+        return;
+    
+    string sql = "DELETE FROM recommendations WHERE username = '" + username + "' AND ";
+    sql = sql + "isbn = '" + b.getISBN() + "';";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+    run = sqlite3_exec(myDatabase, sql_statement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK)
+        return;
+    else
+        printf("Deleted downloaded book from recom!n");
+    sqlite3_close(myDatabase);
 }
 
 string User::downloadBook(){
     if(last_view.isEmpty())
         return "You must view a book first!\n";
+    for(int i = 0; i < downloads.size(); i++)
+        if(downloads[i].getISBN() == last_view.getISBN())
+            return "You've already downloaded this book!\n";
     downloads.push_back(last_view);
 
     string sql = "INSERT INTO DOWNLOADS(username, isbn) VALUES ('";
     sql = sql + this->getName() + "', '" + last_view.getISBN() + "');";
 
     if(insertIntoTable(sql) == true){
-        recSimilarBooks(last_view, 6);
+        removeFromRecom(last_view, this->getName());
+        findSimilarBooks(last_view, 6);
         return "Downloaded your last viewed book! You can use 'downloads' to view your downloaded books!\n";
     }
     else
@@ -423,12 +466,12 @@ string User::getDownloads(){
     string result = "You've downloaded these books so far: \n";
     for(int i = 0; i < downloads.size(); i++){
         result += "\n         • ";
-        result += downloads[i].getISBN();
+        result += downloads[i].getTitle();
     }
     return result;
 }
 
-void User::recSimilarBooks(Book b, int recom_strength){
+void User::findSimilarBooks(Book b, int recom_strength){
     string isbn = b.getISBN();
     string author = b.getAuthor();
     string genres = b.getGenres();
@@ -461,30 +504,44 @@ void User::recSimilarBooks(Book b, int recom_strength){
         updateRec(similar_books[i], recom_strength);
 }
 
-string User::recommend(){
-
-    if(recommendations.size() == 0)
-        return "You have no activity. We can't recommend you anything yet!\n";
+void User::findSimilarUsers(){
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    int run = sqlite3_open("database.db", &myDatabase);
+    if(run != SQLITE_OK)
+        return;
     
-    for(int i = 0; i < recommendations.size()-1; i++)
-        for(int j = 1; j < recommendations.size(); j++)
-            if(recommendations[i].first < recommendations[j].first)
-                swap(recommendations[i], recommendations[j]);
+    string sql = "SELECT username FROM USERS WHERE username != '" + this->getName() + "';";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
 
-    char charResult[500];
-    strcpy(charResult, "Here are some books you might like:\n\n");
-    for(int i = 0; i < recommendations.size(); i++){
-        char index[15];
-        sprintf(index, "         %d. ", i+1);
-        strcat(charResult, index);
-        strcat(charResult, recommendations[i].second.c_str());
-        strcat(charResult, "\n");
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
+    if(run != SQLITE_OK)
+        return;
+
+    vector < string > other_users;
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *line = (char*)sqlite3_column_text(s, 0);
+        string other_username = line;
+        other_users.push_back(other_username);
     }
-    strcat(charResult, "\n[server]--> To view a book type view 'index'!\n");
+    sqlite3_finalize(s);
+    sqlite3_close(myDatabase);
 
-    char *result = new char[500];
-    strcpy(result, charResult);
-    return result;
+    for(int i = 0; i < other_users.size(); i++){
+        User temp_user(other_users[i]);
+        bool found_similarities = false;
+
+        for(int j = 0; j < temp_user.recommendations.size() && j < 3; j++){
+            if(this->recommendations[j].second == temp_user.recommendations[j].second)
+                found_similarities = true;
+        }
+        if(found_similarities == true)
+            for(int j = 0; j < temp_user.recommendations.size() && j < 3; j++)
+                if(this->recommendations[j].second != temp_user.recommendations[j].second){
+                    Book temp_book(temp_user.recommendations[j].second);
+                    updateRec(temp_book, 1);
+                }
+    }
 }
 
 void User::updateRec(Book b, int recom_strength){
@@ -502,4 +559,30 @@ void User::updateRec(Book b, int recom_strength){
     insertIntoTable(sql);
 
     recommendations.push_back(make_pair(recom_strength, b.getISBN()));
+}
+
+string User::recommend(){
+    if(recommendations.size() == 0)
+        return "You have no activity. We can't recommend you anything yet!\n";
+    
+    sort(recommendations.rbegin(), recommendations.rend());
+    findSimilarUsers();
+    
+    char charResult[500];
+    strcpy(charResult, "Here are some books you might like:\n\n");
+    for(int i = 0; i < recommendations.size() && i <= 5; i++){
+        Book b(recommendations[i].second);
+        string book_title = b.getTitle();
+        char index[15];
+        sprintf(index, "         %d. ", i+1);
+        strcat(charResult, index);
+        strcat(charResult, book_title.c_str());
+        strcat(charResult, "\n");
+    }
+    strcat(charResult, "\n[server]--> To view a book type view 'index'!\n");
+    this->view_type = "recommend";
+
+    char *result = new char[500];
+    strcpy(result, charResult);
+    return result;
 }

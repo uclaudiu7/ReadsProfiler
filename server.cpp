@@ -16,7 +16,7 @@
 
 using namespace std;
 
-#define PORT 3000
+#define PORT 3002
 #define MAX_THREADS 100
 
 pthread_t threads[MAX_THREADS];
@@ -57,7 +57,7 @@ void addDefaultBooks(){
 
     sqlStatement = "INSERT INTO BOOKS VALUES('9780747538493', " \
                     "'Harry Potter and the Chamber of Secrets', " \
-                    "'J.K.Rowling', " \
+                    "'J. K. Rowling', " \
                     "'1998', 'Magic', 'Fiction', '9');";
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
@@ -68,7 +68,7 @@ void addDefaultBooks(){
     
     sqlStatement = "INSERT INTO BOOKS VALUES('9781408703991', " \
                     "'The Cuckoo`s Calling', " \
-                    "'J.K.Rowling', " \
+                    "'J. K. Rowling', " \
                     "'2013', 'Crime', 'Fiction', '7');";
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
@@ -79,7 +79,7 @@ void addDefaultBooks(){
     
     sqlStatement = "INSERT INTO BOOKS VALUES('9780679745587', " \
                     "'In Cold Blood', " \
-                    "'TrumanCapote', " \
+                    "'Truman Capote', " \
                     "'1995', 'Crime', 'Nonfiction', '8');";
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
@@ -90,7 +90,7 @@ void addDefaultBooks(){
     
     sqlStatement = "INSERT INTO BOOKS VALUES('9781542005227', " \
                     "'If You Tell', " \
-                    "'GreggOlsen', " \
+                    "'Gregg Olsen', " \
                     "'2019', 'Nonfiction', 'Biography', '6');";
     run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
     if(run != SQLITE_OK){
@@ -98,6 +98,30 @@ void addDefaultBooks(){
         sqlite3_free(ErrMsg);
     }
     else{ printf("Book added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('J. K. Rowling', 'fiction, magic, crime');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('Truman Capote', 'crime, nonfiction');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
+
+    sqlStatement = "INSERT INTO AUTHORS VALUES('Gregg Olsen', 'nonfiction, biography');";
+    run = sqlite3_exec(myDatabase, sqlStatement, callback, 0, &ErrMsg);
+    if(run != SQLITE_OK){
+        fprintf(stderr, "Error while adding author: %s!\n", ErrMsg);
+        sqlite3_free(ErrMsg);
+    }
+    else{ printf("Author added!\n");}
     
 
     sqlite3_close(myDatabase);
@@ -168,6 +192,11 @@ void createDatabase(){
                  "ISBN TEXT NOT NULL);";
     createTable(sqlStatement, "RECOMMENDATIONS");
 
+    sqlStatement = "CREATE TABLE AUTHORS(" \
+                 "NAME TEXT PRIMARY KEY NOT NULL, " \
+                 "GENRES TEXT NOT NULL);";
+    createTable(sqlStatement, "AUTHORS");
+
     addDefaultBooks();
 }
 
@@ -219,7 +248,7 @@ string handleStatus(User &u){
 }
 
 string handleHelp(){
-    return "Available commands: help, register, delete account, login, logout, status, search, download, rate, view, stop.\n";
+    return "Available commands: help, register, delete account, login, logout, status, search, download, view, stop.\n";
 }
 
 string handleSearch(char command[400], User &u){
@@ -250,17 +279,18 @@ string handleSearch(char command[400], User &u){
 }
 
 string handleView(char command[400], User &u){
-    if(u.canView() == false)
-        return "You must search something first!\n";
-    int search_index;
-    int fields = sscanf(command, "view %d", &search_index);
-    if(fields == 1)
-        return u.viewBook(search_index);
-    else
+    if(u.getViewType() == "false")
+        return "You have nothing to view!\n";
+    int view_index;
+    int fields = sscanf(command, "view %d", &view_index);
+    if(fields != 1)
         return "Please select a book using following command: view 'index'!\n";
+    if(u.getViewType() == "search")
+        return u.viewBook(view_index);
+    if(u.getViewType() == "recommend")
+        return u.viewRecommend(view_index);
+    return "";
 }
-
-string handleLastView(User u){ return u.getLastView(); }
 
 string handleDownload(User &u){
     if(u.isLogged() == false)
@@ -278,6 +308,35 @@ string handleRecommend(User &u){
     if(u.isLogged() == false)
         return "You must login first!\n";
     return u.recommend();
+}
+
+string handleAuthor(char command[400]){
+    char author[100];
+    int fields = sscanf(command, "author %[^\n]s", author);
+    if(fields != 1)
+        return "Please ask for information about an author using: author <name>!\n";
+    
+    sqlite3* myDatabase;
+    sqlite3_stmt *s;
+    int run;
+    string name = author;
+    string genres;
+    string sql = "SELECT genres FROM AUTHORS WHERE name = '" + name + "';";
+    const char *sql_statement = const_cast<char*>(sql.c_str());
+    
+    run = sqlite3_open("database.db", &myDatabase);
+    if(run)
+        return "SQL Error!\n";
+    run = sqlite3_prepare_v2(myDatabase, sql_statement, -1, &s, NULL);
+    if(run != SQLITE_OK)
+        return "SQL Error!\n";
+    while((run = sqlite3_step(s)) == SQLITE_ROW){
+        char *line = (char*)sqlite3_column_text(s, 0);
+        genres = line;
+    }
+
+    string response = name + " adresses these genres: " + genres + ".\n";
+    return response;
 }
 
 string handleCommand(char command[400], User &u){
@@ -303,9 +362,8 @@ string handleCommand(char command[400], User &u){
         return handleDownloads(u);
     if(strncmp(command, "download", 8) == 0)
         return handleDownload(u);
-    if(strncmp(command, "last view", 9) == 0)
-        return handleLastView(u);
-    
+    if(strncmp(command, "author", 6) == 0)
+        return handleAuthor(command);
 
     if(strncmp(command, "recommend", 9) == 0)
         return handleRecommend(u);

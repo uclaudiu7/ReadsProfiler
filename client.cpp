@@ -9,7 +9,7 @@
 #include <netdb.h>
 #include <string.h>
 
-#define PORT 3000
+#define PORT 3002
 
 int main(int argc, char *argv[])
 {
@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
         return errno;
     }
 
+    printf("Available commands: help, register, delete account, login, logout, status, search, download, rate, view, stop.\n");
     while(1){
         bzero(msg, 400);
         read(0, msg, 400);
